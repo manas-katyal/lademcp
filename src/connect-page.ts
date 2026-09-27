@@ -325,6 +325,10 @@ for (const b of all("button.pick")) b.addEventListener("click", () => {
 
 for (const b of all("[data-go]")) b.addEventListener("click", () => show(b.dataset.go));
 
+// Linked from energimcp.dk with the brand already chosen: start at the serial number.
+const preset = new URLSearchParams(location.search).get("brand");
+if (preset && Object.hasOwn(BRANDS, preset)) document.querySelector('button.pick[data-brand="' + preset + '"]').click();
+
 document.querySelector("[data-step=serial]").addEventListener("submit", (e) => {
   e.preventDefault();
   const id = $("serial").value.trim();
