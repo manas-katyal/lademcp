@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, isLocalUrl, setupProblems } from "./config.ts";
 import { createServer, VERSION } from "./mcp.ts";
-import { isConnected, OCPP_PATH } from "./ocpp.ts";
+import { isConnected } from "./ocpp.ts";
+import { homePage, LANG_COOKIE, langOf } from "./pages.ts";
+import { planHandler } from "./api.ts";
 import { store } from "./store.ts";
 
 function tokenMatches(header: string | undefined): boolean {
@@ -38,15 +40,19 @@ export function createApp() {
     res.json({ ok: true, version: VERSION, chargers: chargers.length, online: chargers.filter((c) => isConnected(c.id)).length, problems: setupProblems() });
   });
 
-  app.get("/", (_req, res) => {
-    const ws = config.baseUrl.replace(/^http/, "ws");
-    res
-      .type("html")
-      .send(
-        `<!doctype html><meta charset="utf-8"><title>${config.appName}</title>` +
-          `<pre>${config.appName} ${VERSION}\n\nSmart charging over OCPP 1.6J, planned on Danish day-ahead prices and CO2.\nOCPP endpoint: ${ws}${OCPP_PATH}&lt;charge point id&gt;\nMCP endpoint: POST ${config.baseUrl}/mcp\nHealth: ${config.baseUrl}/healthz\n</pre>`,
-      );
+  // The page for people; Claude uses /mcp. /api/plan only reads prices and CO2.
+  app.get("/", (req, res) => {
+    res.type("html").send(homePage(langOf(req)));
   });
+  // DK | EN toggle. Only same-site paths are accepted as the way back.
+  app.get("/lang/:lang", (req, res) => {
+    const lang = req.params.lang === "en" ? "en" : "da";
+    const back = String(req.query.back ?? "/");
+    const safe = back.startsWith("/") && !back.startsWith("//") ? back : "/";
+    const secure = config.baseUrl.startsWith("https:") ? "; Secure" : "";
+    res.set("Set-Cookie", `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`).redirect(303, safe);
+  });
+  app.get("/api/plan", planHandler);
 
   app.post("/mcp", async (req, res) => {
     if (!isLocalUrl(config.baseUrl) && !tokenMatches(req.headers.authorization)) {

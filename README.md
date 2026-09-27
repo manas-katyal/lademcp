@@ -4,6 +4,7 @@ Smart charging for home EV chargers in Denmark. The charger connects to this ser
 
 - **Cheapest or greenest:** `green_weight` 0 charges in the cheapest hours, 1 in the lowest-CO2 hours, anything in between blends them. Every plan says what it costs and emits compared with charging right away, the cheapest plan and the greenest plan.
 - **Automatic:** a plan is made when a car is plugged in, and redone every 30 minutes while it is, so tomorrow's prices (around 13:00) and the CO2 prognosis (around 15:00) are picked up.
+- **A page for people:** `/` shows tonight's plan for settings you pick (ready-by time, kWh, charger power, DK1/DK2) and a cheapest-to-greenest slider, in Danish or English. It reads prices only and does not touch a charger. The data comes from `GET /api/plan`.
 - **Grid tariff:** set `NETTARIF_DKK_PER_KWH` to your grid company's 24 hourly rates, or plans use the spot price alone and say so.
 
 ## Chargers
