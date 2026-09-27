@@ -8,9 +8,10 @@ import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, isLocalUrl, setupProblems } from "./config.ts";
 import { createServer, VERSION } from "./mcp.ts";
-import { isConnected } from "./ocpp.ts";
+import { isConnected, OCPP_PATH } from "./ocpp.ts";
+import { connectPage } from "./connect-page.ts";
 import { homePage, LANG_COOKIE, langOf } from "./pages.ts";
-import { planHandler } from "./api.ts";
+import { chargerHandler, planHandler } from "./api.ts";
 import { store } from "./store.ts";
 
 function tokenMatches(header: string | undefined): boolean {
@@ -52,7 +53,17 @@ export function createApp() {
     const secure = config.baseUrl.startsWith("https:") ? "; Secure" : "";
     res.set("Set-Cookie", `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`).redirect(303, safe);
   });
+  app.get("/connect", (req, res) => {
+    res.type("html").send(
+      connectPage(langOf(req), {
+        ocppBase: `${config.baseUrl.replace(/^http/, "ws")}${OCPP_PATH}`,
+        reachable: !isLocalUrl(config.baseUrl),
+        passwordRequired: Boolean(config.ocppPassword),
+      }),
+    );
+  });
   app.get("/api/plan", planHandler);
+  app.get("/api/charger/:id", chargerHandler);
 
   app.post("/mcp", async (req, res) => {
     if (!isLocalUrl(config.baseUrl) && !tokenMatches(req.headers.authorization)) {

@@ -50,6 +50,10 @@ const T = {
     tariffYes: "Spotpris plus nettarif. Elafgift, Energinets tariffer og moms kommer oveni.",
     tariffNo: "Kun spotpris. Nettarif, elafgift og moms kommer oveni, så regningen er højere.",
     footer: "LadeMCP · priser og CO2 fra Energinet, Energi Data Service",
+    charger: "Ladestander",
+    connect: "Tilslut",
+    online: "Forbundet",
+    offline: "Ikke forbundet",
   },
   en: {
     title: "Charging tonight",
@@ -85,6 +89,10 @@ const T = {
     tariffYes: "Spot price plus grid tariff. Electricity tax, Energinet tariffs and VAT come on top.",
     tariffNo: "Spot price only. Grid tariff, electricity tax and VAT come on top, so the bill is higher.",
     footer: "LadeMCP · prices and CO2 from Energinet, Energi Data Service",
+    charger: "Charger",
+    connect: "Connect",
+    online: "Connected",
+    offline: "Not connected",
   },
 };
 
@@ -102,15 +110,14 @@ const POWERS = [
   { amps: 32, phases: 3, kw: "22" },
 ];
 
-export function homePage(lang: Lang): string {
+/** The frame every page shares: brand, DK | EN toggle, one card, a footer. */
+export function shell(lang: Lang, title: string, back: string, body: string, footer: string): string {
   const t = T[lang];
-  const kwhOptions = [10, 20, 30, 40, 50, 60, 80].map((n) => `<option value="${n}"${n === 30 ? " selected" : ""}>${n} kWh</option>`).join("");
-  const powerOptions = POWERS.map((p) => `<option value="${p.amps}x${p.phases}"${p.amps === 16 && p.phases === 3 ? " selected" : ""}>${lang === "en" ? p.kw.replace(",", ".") : p.kw} kW</option>`).join("");
   const toggle = (["da", "en"] as const)
-    .map((l) => `<a href="/lang/${l}" hreflang="${l}" lang="${l}"${lang === l ? ' class="on" aria-current="true"' : ""}>${l === "da" ? "DK" : "EN"}</a>`)
+    .map((l) => `<a href="/lang/${l}?back=${encodeURIComponent(back)}" hreflang="${l}" lang="${l}"${lang === l ? ' class="on" aria-current="true"' : ""}>${l === "da" ? "DK" : "EN"}</a>`)
     .join("");
   return `<!doctype html><html lang="${lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><title>${esc(t.title)} · LadeMCP</title><link rel="icon" href="/icon.svg?v=1" type="image/svg+xml">
+<meta name="color-scheme" content="light dark"><title>${esc(title)} · LadeMCP</title><link rel="icon" href="/icon.svg?v=1" type="image/svg+xml">
 <style>
   :root{--bg:#faf9f7;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--faint:#8e8e93;--line:#e8e8ea;--ok:#0f7b4f;--err:#c1352a;
     --ease:cubic-bezier(0.22,1,0.36,1);--digit-dur:500ms;--digit-distance:8px;--digit-stagger:70ms;--digit-blur:2px;--digit-ease:cubic-bezier(0.34,1.45,0.64,1)}
@@ -160,9 +167,32 @@ export function homePage(lang: Lang): string {
   footer{margin-top:20px;font-size:12px;color:var(--muted)}
   footer p{margin:0 0 4px}
   @media (prefers-reduced-motion:reduce){.t-digit-group .t-digit,.pill.loading::before{animation:none!important}.bars i,.fade{transition:none}}
+  button,.btn{font:inherit;font-weight:500;padding:12px 16px;border:0;border-radius:10px;background:var(--ink);color:var(--on-ink);cursor:pointer;text-decoration:none;display:inline-block;text-align:center;transition:opacity 200ms var(--ease),transform 200ms var(--ease)}
+  button:active,.btn:active{transform:scale(.97)}
+  button.full,.btn.full{width:100%;margin-top:18px}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.4;cursor:default}
+  button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+  a{color:inherit}
+  ul.rows a.go{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;color:inherit;text-decoration:none;padding:4px 0}
+  .chev{display:inline-flex;align-items:center;white-space:nowrap;color:var(--muted)}
+  .chev::after{content:"›";margin-left:8px;color:var(--faint);font-size:20px;line-height:1}
+  .dot{display:inline-flex;align-items:center;gap:6px}.dot::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .dot.ok::before{background:var(--ok)}
 </style>
 <body><div class="wrap">
-  <div class="top"><div class="brand"><img class="mark" src="/icon.svg?v=1" alt=""><span>LadeMCP</span></div><nav class="langs" aria-label="${t.langLabel}">${toggle}</nav></div>
+  <div class="top"><a class="brand" href="/" style="text-decoration:none"><img class="mark" src="/icon.svg?v=1" alt=""><span>LadeMCP</span></a><nav class="langs" aria-label="${t.langLabel}">${toggle}</nav></div>
+${body}
+  <footer>${footer}</footer>
+</div>
+</body></html>`;
+}
+
+export function homePage(lang: Lang): string {
+  const t = T[lang];
+  const kwhOptions = [10, 20, 30, 40, 50, 60, 80].map((n) => `<option value="${n}"${n === 30 ? " selected" : ""}>${n} kWh</option>`).join("");
+  const powerOptions = POWERS.map((p) => `<option value="${p.amps}x${p.phases}"${p.amps === 16 && p.phases === 3 ? " selected" : ""}>${lang === "en" ? p.kw.replace(",", ".") : p.kw} kW</option>`).join("");
+  return shell(lang, t.title, "/", `
   <div class="card" id="card" aria-live="polite">
     <div class="pill loading" id="pill">${t.loading}</div>
     <div class="fade">
@@ -180,6 +210,7 @@ export function homePage(lang: Lang): string {
       <p class="muted small hint" id="hint"></p>
     </div>
     <ul class="rows">
+      <li><a class="go" href="/connect"><span>${t.charger}</span><span class="chev" id="chargerState">${t.connect}</span></a></li>
       <li><label for="ready">${t.ready}</label><input type="time" id="ready" value="07:00" step="900"></li>
       <li><label for="kwh">${t.amount}</label><select id="kwh">${kwhOptions}</select></li>
       <li><label for="power">${t.power}</label><select id="power">${powerOptions}</select></li>
@@ -187,8 +218,6 @@ export function homePage(lang: Lang): string {
     </ul>
     <div class="warn" id="warn"></div>
   </div>
-  <footer><p id="basis"></p><p>${t.footer}</p></footer>
-</div>
 <script>
 const T = ${JSON.stringify(clientStrings(lang))};
 const LOCALE = ${JSON.stringify(lang === "da" ? "da-DK" : "en-GB")};
@@ -316,6 +345,16 @@ const soon = () => { clearTimeout(timer); timer = setTimeout(update, 150); };
 for (const el of Object.values(inputs)) el.addEventListener(el.type === "range" ? "input" : "change", soon);
 update();
 setInterval(update, 10 * 60000);
-</script>
-</body></html>`;
+
+// The charger this browser connected on /connect, if any.
+try {
+  const c = JSON.parse(localStorage.getItem("lade.charger") || "null");
+  if (c && c.id) {
+    fetch("/api/charger/" + encodeURIComponent(c.id)).then((r) => r.json()).then((d) => {
+      const dot = Object.assign(document.createElement("span"), { className: "dot" + (d.connected ? " ok" : ""), textContent: d.connected ? T.online : T.offline, title: c.name || c.id });
+      $("chargerState").replaceChildren(dot);
+    }).catch(() => {});
+  }
+} catch {}
+</script>`, `<p id="basis"></p><p>${t.footer}</p>`);
 }

@@ -8,7 +8,8 @@ import { config } from "./config.ts";
 import { EdsError } from "./eds.ts";
 import { round2 } from "./planner.ts";
 import { makePlan, nextReadyBy } from "./smart.ts";
-import { defaults } from "./store.ts";
+import { isConnected } from "./ocpp.ts";
+import { defaults, store } from "./store.ts";
 
 const query = z.object({
   ready_by: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("07:00"),
@@ -54,4 +55,30 @@ export async function planHandler(req: Request, res: Response): Promise<void> {
     const limited = err instanceof EdsError && err.status === 429;
     res.status(limited ? 503 : 502).json({ error: limited ? "rate_limited" : "upstream" });
   }
+}
+
+/**
+ * Whether a charger with this id has dialled in, for the onboarding page to
+ * poll. Only answers for an id the caller already knows (the serial number),
+ * and only with what the charger announced about itself and its plan settings.
+ */
+export function chargerHandler(req: Request, res: Response): void {
+  const id = String(req.params.id ?? "");
+  if (!/^[A-Za-z0-9._-]{3,64}$/.test(id)) {
+    res.status(400).json({ error: "bad_request" });
+    return;
+  }
+  const s = store.get(id);
+  res.set("Cache-Control", "no-store");
+  if (!s) {
+    res.json({ connected: false });
+    return;
+  }
+  const st = store.state(id);
+  res.json({
+    connected: isConnected(id),
+    ...(st.vendor ? { vendor: st.vendor, model: st.model } : {}),
+    ready_by: s.readyBy,
+    energy_kwh: s.energyKwh,
+  });
 }
