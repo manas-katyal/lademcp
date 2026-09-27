@@ -1,0 +1,55 @@
+{
+  "name": "lademcp",
+  "version": "0.1.0",
+  "mcpName": "io.github.manas-katyal/lademcp",
+  "description": "LadeMCP: smart charging for Danish home chargers over OCPP 1.6J, planned on day-ahead prices and CO2 forecasts from Energi Data Service",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "ocpp",
+    "ocpp-1.6j",
+    "ev-charging",
+    "smart-charging",
+    "energidataservice",
+    "denmark",
+    "zaptec",
+    "easee",
+    "wallbox",
+    "zappi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manas-katyal/lademcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/manas-katyal/lademcp/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "dev": "node --watch --env-file-if-exists=.env src/server.ts",
+    "stdio": "node --env-file-if-exists=.env src/stdio.ts",
+    "simulate": "node scripts/simulate.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "express": "^5.2.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "bin": {
+    "lademcp": "bin/lademcp.js"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  }
+}
