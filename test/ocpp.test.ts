@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { connect } from "node:net";
 import WebSocket from "ws";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -89,6 +90,36 @@ async function mcp() {
 test("a charger with the wrong password is refused", async () => {
   const cp = fakeCharger("ZAP-BAD", "wrong");
   await assert.rejects(cp.open(), /401/);
+});
+
+/** Sends raw bytes to the server and resolves with whatever comes back before it closes. */
+function raw(chunks: (string | Buffer)[]): Promise<string> {
+  return new Promise((resolve) => {
+    let got = "";
+    const s = connect(port, "127.0.0.1", async () => {
+      for (const c of chunks) {
+        s.write(c);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      s.end();
+    });
+    s.setTimeout(2000, () => s.destroy());
+    s.on("data", (d) => (got += d.toString("latin1")));
+    s.on("error", () => {});
+    s.on("close", () => resolve(got));
+  });
+}
+
+const upgrade = (path: string) =>
+  `GET ${path} HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Protocol: ocpp1.6\r\nAuthorization: Basic ${Buffer.from("ZAP-RAW:secret").toString("base64")}\r\n\r\n`;
+
+test("a malformed upgrade path or a bad WebSocket frame does not take the server down", async () => {
+  assert.match(await raw([upgrade("/ocpp/%E0%A4%A")]), /^HTTP\/1.1 404/);
+  assert.match(await raw([upgrade("//")]), /^HTTP\/1.1 404/);
+  // Reserved bits set: ws rejects the frame with an "error" event on the socket.
+  assert.match(await raw([upgrade("/ocpp/ZAP-RAW"), Buffer.from([0xf1, 0x80, 0, 0, 0, 0])]), /^HTTP\/1.1 101/);
+  const health = await realFetch(`http://localhost:${port}/healthz`);
+  assert.equal(health.status, 200);
 });
 
 test("boot, car plugged in, schedule sent into the cheap hour", async () => {
