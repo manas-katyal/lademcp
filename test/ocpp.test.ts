@@ -91,6 +91,14 @@ test("a charger with the wrong password is refused", async () => {
   await assert.rejects(cp.open(), /401/);
 });
 
+test("a charger with the right password but a different user, or a longer password, is refused", async () => {
+  const auth = (user: string, pw: string) => `Basic ${Buffer.from(`${user}:${pw}`).toString("base64")}`;
+  for (const authorization of [auth("ZAP-1", "secret"), auth("ZAP-OTHER", "secret2"), auth("ZAP-OTHER", "secre")]) {
+    const ws = new WebSocket(`ws://localhost:${port}/ocpp/ZAP-OTHER`, "ocpp1.6", { headers: { authorization } });
+    await assert.rejects(new Promise((resolve, reject) => { ws.once("open", resolve); ws.once("unexpected-response", (_q, r) => reject(new Error(String(r.statusCode)))); }), /401/);
+  }
+});
+
 test("boot, car plugged in, schedule sent into the cheap hour", async () => {
   const cp = fakeCharger("ZAP-1");
   await cp.open();
