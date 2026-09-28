@@ -124,7 +124,8 @@ function onMessage(id: string, ws: WebSocket, raw: string): void {
 
   if (type === 2) {
     const [, , action, payload] = frame as [number, string, string, Record<string, unknown>];
-    const handler = handlers[action];
+    // Own keys only: "constructor" or "toString" would otherwise find Object.prototype and answer a CALLRESULT.
+    const handler = Object.hasOwn(handlers, action) ? handlers[action] : undefined;
     if (!handler) return send(ws, [4, msgId, "NotImplemented", `${action} is not supported`, {}]);
     try {
       return send(ws, [3, msgId, handler(id, payload ?? {})]);

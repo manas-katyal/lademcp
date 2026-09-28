@@ -112,6 +112,20 @@ test("boot, car plugged in, schedule sent into the cheap hour", async () => {
   await new Promise((r) => setTimeout(r, 50));
 });
 
+test("an action the server does not know gets NotImplemented, even one named like an object property", async () => {
+  const cp = fakeCharger("ZAP-UNK");
+  await cp.open();
+  const errors: unknown[][] = [];
+  cp.ws.on("message", (data) => {
+    const frame = JSON.parse(data.toString());
+    if (frame[0] === 4) errors.push(frame);
+  });
+  for (const action of ["Foo", "constructor", "toString", "__proto__"]) cp.ws.send(JSON.stringify([2, action, action, {}]));
+  await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(errors.map((f) => [f[1], f[2]]), [["Foo", "NotImplemented"], ["constructor", "NotImplemented"], ["toString", "NotImplemented"], ["__proto__", "NotImplemented"]]);
+  cp.ws.close();
+});
+
 test("MCP: list_chargers and preview_plan see the charger", async () => {
   const tool = await mcp();
   const list = await tool("list_chargers");
