@@ -21,6 +21,9 @@ function tokenMatches(header: string | undefined): boolean {
   return given.length === want.length && timingSafeEqual(given, want);
 }
 
+// The socket's own peer, not req.ip: with "trust proxy" req.ip comes from X-Forwarded-For, which anyone can send.
+const fromLoopback = (addr: string | undefined) => addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
+
 export function createApp() {
   const log = (msg: string, extra?: unknown) => console.error(`[lade ${new Date().toISOString()}] ${msg}`, extra ?? "");
 
@@ -66,7 +69,9 @@ export function createApp() {
   app.get("/api/charger/:id", chargerHandler);
 
   app.post("/mcp", async (req, res) => {
-    if (!isLocalUrl(config.baseUrl) && !tokenMatches(req.headers.authorization)) {
+    // A local base URL alone is not enough: the OCPP listener shares this port and listens on every interface, so the LAN reaches /mcp too.
+    const local = isLocalUrl(config.baseUrl) && fromLoopback(req.socket.remoteAddress);
+    if (!local && !tokenMatches(req.headers.authorization)) {
       res.status(401).json({ jsonrpc: "2.0", error: { code: -32001, message: config.mcpToken ? "Missing or wrong bearer token." : "MCP_BEARER_TOKEN is not set on this server, so /mcp is closed." }, id: null });
       return;
     }
