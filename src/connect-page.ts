@@ -5,7 +5,8 @@
 import { esc, shell, type Lang } from "./pages.ts";
 import { rail, SETUP_CSS } from "./setup-page.ts";
 
-type Brand = { name: string; where?: string; serialHint?: string; steps?: string[]; note?: string; blocked?: string };
+/** keyInUrl: the charger has no password field, so the password goes in the address. */
+type Brand = { name: string; where?: string; serialHint?: string; steps?: string[]; note?: string; blocked?: string; keyInUrl?: boolean };
 
 const BRANDS: Record<Lang, Record<string, Brand>> = {
   da: {
@@ -53,6 +54,19 @@ const BRANDS: Record<Lang, Record<string, Brand>> = {
       ],
       note: "myenergi-appen virker stadig ved siden af.",
     },
+    evbox: {
+      name: "EVBox Elvi",
+      where: "EVBox Connect-appen",
+      serialHint: "Det står i EVBox Connect-appen og på typeskiltet på laderen.",
+      keyInUrl: true,
+      steps: [
+        "Laderen skal være på Wi-Fi og have firmware 424 eller nyere.",
+        "Åbn EVBox Connect-appen, forbind til laderen over Bluetooth, og skift til installationstilstand med koden, der fulgte med laderen.",
+        "Gå til »Charging management platform« › »Other backend URL«.",
+        "Indsæt adressen herunder, og gem. Adgangskoden er en del af adressen, og den skal slutte med /.",
+      ],
+      note: "Laderen kan kun tale med én platform ad gangen. Afregnes din opladning i dag gennem fx Monta eller din arbejdsgiver, stopper det.",
+    },
     other: {
       name: "Anden ladestander",
       where: "ladestanderens app",
@@ -64,6 +78,7 @@ const BRANDS: Record<Lang, Record<string, Brand>> = {
     },
     clever: { name: "Clever", blocked: "Clever-ladere taler kun med Clevers egen server, så LadeMCP kan ikke nå dem. Det samme gælder de fleste leasede ladere." },
     tesla: { name: "Tesla Wall Connector", blocked: "Tesla Wall Connector Gen 3 har ikke OCPP, så den kan ikke tilsluttes. Styring gennem bilen i stedet er på vej." },
+    livo: { name: "EVBox Livo", blocked: "EVBox har lukket for, at Livo kan forbindes til andre platforme end dem, EVBox selv har aftaler med. Den kan derfor ikke tilsluttes LadeMCP." },
   },
   en: {
     zaptec: {
@@ -110,6 +125,19 @@ const BRANDS: Record<Lang, Record<string, Brand>> = {
       ],
       note: "The myenergi app keeps working alongside.",
     },
+    evbox: {
+      name: "EVBox Elvi",
+      where: "the EVBox Connect app",
+      serialHint: "It is in the EVBox Connect app and on the charger's rating plate.",
+      keyInUrl: true,
+      steps: [
+        "The charger has to be on Wi-Fi with firmware 424 or later.",
+        "Open the EVBox Connect app, connect to the charger over Bluetooth, and switch to installation mode with the code that came with the charger.",
+        "Go to “Charging management platform” › “Other backend URL”.",
+        "Paste the address below and save. The password is part of the address, and it has to end with /.",
+      ],
+      note: "The charger can only talk to one platform at a time. If your charging is billed through Monta or your employer today, that stops.",
+    },
     other: {
       name: "Another charger",
       where: "the charger's app",
@@ -118,6 +146,7 @@ const BRANDS: Record<Lang, Record<string, Brand>> = {
     },
     clever: { name: "Clever", blocked: "Clever chargers only talk to Clever's own server, so LadeMCP cannot reach them. The same goes for most leased chargers." },
     tesla: { name: "Tesla Wall Connector", blocked: "The Tesla Wall Connector Gen 3 has no OCPP, so it cannot connect. Control through the car instead is on the way." },
+    livo: { name: "EVBox Livo", blocked: "EVBox has closed the Livo to platforms other than the ones EVBox has agreements with, so it cannot connect to LadeMCP." },
   },
 };
 
@@ -260,11 +289,11 @@ export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boo
     ${opts.reachable ? "" : `<div class="box error">${t.local}<br><code>${simulate}</code></div>`}
     <ol class="how" id="how"></ol>
     <ul class="rows">
-      <li class="kv"><span>${t.address}</span><code>${esc(opts.ocppBase)}</code><button class="copy" data-copy="${esc(opts.ocppBase)}">${t.copy}</button></li>
+      <li class="kv"><span>${t.address}</span><code id="addr">${esc(opts.ocppBase)}</code><button class="copy" id="copyAddr" data-copy="${esc(opts.ocppBase)}">${t.copy}</button></li>
       <li class="kv"><span>${t.id}</span><code class="sid"></code><button class="copy" id="copyId">${t.copy}</button></li>
-      <li class="kv"><span>${t.password}</span><code>${esc(opts.password)}</code><button class="copy" data-copy="${esc(opts.password)}">${t.copy}</button></li>
+      <li class="kv" id="pwRow"><span>${t.password}</span><code>${esc(opts.password)}</code><button class="copy" data-copy="${esc(opts.password)}">${t.copy}</button></li>
     </ul>
-    <p class="muted small" style="margin-top:12px">${t.oneField}<br><code id="fullUrl"></code></p>
+    <p class="muted small" style="margin-top:12px" id="oneField">${t.oneField}<br><code id="fullUrl"></code></p>
     <p class="muted small" id="note"></p>
     <button class="full" data-go="wait">${t.saved}</button>
     <button class="link" type="button" data-go="serial">${t.back}</button>
@@ -288,6 +317,8 @@ export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boo
 const T = ${JSON.stringify(clientStrings(lang))};
 const BRANDS = ${JSON.stringify(brands)};
 const BASE = ${JSON.stringify(opts.ocppBase)};
+// For chargers with no password field: the charger adds its own id after the last slash.
+const KEYED = BASE + ${JSON.stringify(encodeURIComponent(opts.password))} + "/";
 const LANG = ${JSON.stringify(lang)};
 const fill = (s, ...a) => a.reduce((acc, v, i) => acc.replace("{" + i + "}", v), s);
 const $ = (id) => document.getElementById(id);
@@ -320,6 +351,10 @@ for (const b of all("button.pick")) b.addEventListener("click", () => {
   $("setupHead").textContent = fill(T.setupHead, info.where);
   $("how").replaceChildren(...info.steps.map((s) => Object.assign(document.createElement("li"), { textContent: s })));
   $("note").textContent = info.note || "";
+  const addr = info.keyInUrl ? KEYED : BASE;
+  $("addr").textContent = addr;
+  $("copyAddr").dataset.copy = addr;
+  $("pwRow").hidden = $("oneField").hidden = Boolean(info.keyInUrl);
   show("serial");
 });
 
@@ -347,12 +382,22 @@ async function copy(btn, text) {
 for (const b of all("button.copy[data-copy]")) b.addEventListener("click", () => copy(b, b.dataset.copy));
 $("copyId").addEventListener("click", () => copy($("copyId"), state.id));
 
-function startWaiting() {
+/** Chargers online before we started waiting; a new one shows up here even if its id is not quite the serial typed. */
+async function online() {
+  try { return (await (await fetch("/setup/chargers")).json()).filter((c) => c.connected).map((c) => c.id); } catch { return []; }
+}
+
+async function startWaiting() {
   $("slow").hidden = true;
   slowTimer = setTimeout(() => ($("slow").hidden = false), 120000);
+  const before = new Set(await online());
+  before.delete(state.id);
   const check = async () => {
     try {
-      const d = await (await fetch("/api/charger/" + encodeURIComponent(state.id))).json();
+      const fresh = (await online()).find((id) => id === state.id || !before.has(id));
+      if (!fresh) return;
+      state.id = fresh;
+      const d = await (await fetch("/api/charger/" + encodeURIComponent(fresh))).json();
       if (!d.connected) return;
       const name = [d.vendor, d.model].filter(Boolean).join(" ") || BRANDS[state.brand].name;
       remember({ name });

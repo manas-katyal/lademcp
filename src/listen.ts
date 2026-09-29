@@ -20,9 +20,7 @@ export function listen(port = config.port): Promise<{ server: Server; close: () 
     server.once("listening", () => {
       console.error(`[lade ${new Date().toISOString()}] listening on port ${port}, public URL ${config.baseUrl}`);
       for (const problem of setupProblems()) console.error(`[lade] ${problem}`);
-      // The owner claims the server with this; it is only ever printed here.
-      const code = setup.claimCode();
-      if (code && !config.localMode) console.error(`[lade] Setup: open ${config.baseUrl}/setup?code=${code} to set up this server (code ${code})`);
+      if (!setup.status().claimed && !config.localMode) console.error(`[lade] Setup: open ${config.baseUrl}/setup to set up this server`);
       resolve({
         server,
         close: () => {
