@@ -189,6 +189,8 @@ export function createOcppServer() {
     log(`charger ${id} connected`);
 
     ws.on("message", (data) => onMessage(id, ws, data.toString()));
+    // A bad frame (invalid UTF-8, reserved bits) emits "error"; unheard, it would take the process down.
+    ws.on("error", (err) => log(`charger ${id}: ${err.message}`));
     ws.on("close", () => {
       if (sockets.get(id) !== ws) return;
       sockets.delete(id);
@@ -200,9 +202,20 @@ export function createOcppServer() {
 
   /** Hook for the HTTP server's upgrade event, so OCPP shares the port with MCP. */
   function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): boolean {
-    const url = new URL(req.url ?? "/", "http://x");
-    if (!url.pathname.startsWith(OCPP_PATH)) return false;
-    const id = decodeURIComponent(url.pathname.slice(OCPP_PATH.length)).replace(/\/+$/, "");
+    // Both throw on a malformed request line ("//", "%E0%A4%A"); a throw here is uncaught and ends the process.
+    let pathname: string;
+    try {
+      pathname = new URL(req.url ?? "/", "http://x").pathname;
+    } catch {
+      return false;
+    }
+    if (!pathname.startsWith(OCPP_PATH)) return false;
+    let id: string;
+    try {
+      id = decodeURIComponent(pathname.slice(OCPP_PATH.length)).replace(/\/+$/, "");
+    } catch {
+      id = "";
+    }
     if (!id || id.includes("/")) {
       socket.end("HTTP/1.1 404 Not Found\r\n\r\n");
       return true;
