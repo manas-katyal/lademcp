@@ -40,7 +40,7 @@ async function call(path: string, init: RequestInit & { token?: string } = {}): 
     throw new MontaError("unreachable", `Monta did not answer: ${(err as Error).message}`);
   }
   if (res.status === 400 || res.status === 401 || res.status === 403) throw new MontaError("bad_keys", `Monta refused the keys (${res.status})`);
-  if (!res.ok) throw new MontaError("unreachable", `Monta answered ${res.status}`);
+  if (!res.ok) throw new MontaError("unreachable", `Monta answered ${res.status} to ${init.method ?? "GET"} ${path.split("?")[0]}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
   return res.json();
 }
 

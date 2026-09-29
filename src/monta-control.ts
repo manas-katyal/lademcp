@@ -131,9 +131,15 @@ export async function montaCheck(now = new Date()): Promise<void> {
         st.montaScheduling = true;
         return;
       }
-      await montaStopCharge(t, active.id);
-      cancelledAt.push(now.getTime());
-      log(`${id}: cancelled Monta's own scheduled charge ${active.id}`);
+      try {
+        await montaStopCharge(t, active.id);
+        cancelledAt.push(now.getTime());
+        log(`${id}: cancelled Monta's own scheduled charge ${active.id}`);
+      } catch (err) {
+        // Monta would not cancel it. Say so, and carry on with the plan rather than stopping here.
+        st.montaScheduling = true;
+        log(`${id}: could not cancel Monta's scheduled charge ${active.id} (${active.state}): ${(err as Error).message}`);
+      }
     } else st.montaScheduling = false;
     // A charge we did not start, running more than a few minutes after the cable went in, was started by a
     // person (the Monta app, an RFID tag). That is a wish to charge now: leave it alone until the cable comes out.
