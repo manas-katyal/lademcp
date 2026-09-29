@@ -7,10 +7,12 @@ import { config, setupProblems } from "./config.ts";
 import { createOcppServer } from "./ocpp.ts";
 import { startScheduler } from "./smart.ts";
 import { setup } from "./setup.ts";
+import { startMontaScheduler } from "./monta-control.ts";
 
 export function listen(port = config.port): Promise<{ server: Server; close: () => void }> {
   const ocpp = createOcppServer();
   const stopScheduler = startScheduler();
+  const stopMonta = startMontaScheduler();
   const server = createApp().listen(port);
   server.on("upgrade", (req, socket, head) => {
     if (!ocpp.handleUpgrade(req, socket, head)) socket.end("HTTP/1.1 404 Not Found\r\n\r\n");
@@ -25,6 +27,7 @@ export function listen(port = config.port): Promise<{ server: Server; close: () 
         server,
         close: () => {
           stopScheduler();
+          stopMonta();
           ocpp.close();
           server.close();
         },

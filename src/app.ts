@@ -18,12 +18,20 @@ import { store } from "./store.ts";
 import { setup } from "./setup.ts";
 import { areaPage, assistantPage, donePage, ownerPage } from "./setup-page.ts";
 import { MontaError, montaChargePoints, montaToken } from "./monta.ts";
+import { isMonta, MONTA_PREFIX, montaStatus, replanMonta } from "./monta-control.ts";
 import type { Request, Response, NextFunction } from "express";
 
 function tokenMatches(token: string | undefined): boolean {
   const given = Buffer.from(token ?? "");
   const want = Buffer.from(setup.mcpToken());
   return given.length === want.length && timingSafeEqual(given, want);
+}
+
+/** The charger the front page is about: the one in Monta, or else the first that dialled in. */
+function myCharger() {
+  const monta = setup.monta();
+  if (monta?.chargePointId) return store.get(`${MONTA_PREFIX}${monta.chargePointId}`) ?? store.update(`${MONTA_PREFIX}${monta.chargePointId}`, {});
+  return store.list().find((c) => !isMonta(c.id));
 }
 
 const ocppBase = () => `${config.baseUrl.replace(/^http/, "ws")}${OCPP_PATH}`;
@@ -96,7 +104,7 @@ export function createApp() {
       donePage(lang, {
         priceArea: s.priceArea,
         chargers: [
-          ...chargers.map((c) => ({ id: c.id, connected: isConnected(c.id) })),
+          ...chargers.filter((c) => !isMonta(c.id)).map((c) => ({ id: c.id, connected: isConnected(c.id) })),
           ...(monta?.chargePointId ? [{ id: `${monta.name ?? monta.chargePointId} (Monta)`, connected: true }] : []),
         ],
         assistant,
@@ -168,6 +176,35 @@ export function createApp() {
     res.json({ ok: true });
   });
   app.get("/api/plan", planHandler);
+  // The owner's own charger, so the front page shows and saves the settings the charger actually plans with.
+  app.get("/api/my-charger", ownerOnly, (_req, res) => {
+    const c = myCharger();
+    if (!c) return res.status(404).json({ error: "no_charger" });
+    const m = montaStatus(c.id);
+    res.set("Cache-Control", "no-store").json({
+      id: c.id,
+      settings: { ready_by: c.readyBy, energy_kwh: c.energyKwh, green_weight: c.greenWeight, max_amps: c.maxAmps, phases: c.phases, price_area: c.priceArea, smart: c.smart },
+      connected: isMonta(c.id) ? Boolean(m && !m.error) : isConnected(c.id),
+      plugged_in: m?.pluggedIn ?? false,
+      charging_now: m?.charging ?? false,
+      monta_scheduling: m?.montaScheduling ?? false,
+    });
+  });
+  app.post("/api/my-charger", ownerOnly, (req, res) => {
+    const c = myCharger();
+    if (!c) return res.status(404).json({ error: "no_charger" });
+    const b = req.body ?? {};
+    const patch: Record<string, unknown> = {};
+    if (typeof b.ready_by === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.ready_by)) patch.readyBy = b.ready_by;
+    if (Number.isFinite(b.energy_kwh) && b.energy_kwh >= 1 && b.energy_kwh <= 150) patch.energyKwh = b.energy_kwh;
+    if (Number.isFinite(b.green_weight) && b.green_weight >= 0 && b.green_weight <= 1) patch.greenWeight = b.green_weight;
+    if ([6, 10, 13, 16, 20, 25, 32].includes(b.max_amps)) patch.maxAmps = b.max_amps;
+    if (b.phases === 1 || b.phases === 3) patch.phases = b.phases;
+    if (b.price_area === "DK1" || b.price_area === "DK2") patch.priceArea = b.price_area;
+    store.update(c.id, patch);
+    if (isMonta(c.id)) replanMonta();
+    res.json({ ok: true });
+  });
   app.get("/api/charger/:id", chargerHandler);
 
   async function mcp(req: Request, res: Response, token: string | undefined): Promise<void> {

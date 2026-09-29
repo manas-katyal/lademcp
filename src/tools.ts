@@ -6,6 +6,7 @@ import { OcppError, isConnected, OCPP_PATH } from "./ocpp.ts";
 import { SLOT_MINUTES, round2, type Plan, type PlanTotals, type Slot } from "./planner.ts";
 import { applyPlan, clearPlan, danishTime, makePlan, summarize } from "./smart.ts";
 import { maxKw, store, type ChargerSettings } from "./store.ts";
+import { isMonta, montaCheck, montaStatus, replanMonta } from "./monta-control.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
 const fail = (message: string) => ({ content: [{ type: "text" as const, text: message }], isError: true });
@@ -129,17 +130,19 @@ export function registerTools(server: McpServer): void {
     "list_chargers",
     {
       title: "List chargers",
-      description: "Every charger that has connected over OCPP: whether it is online, what it reports (vendor, model, connector status), its smart-charging settings and the last plan sent to it.",
+      description: "Every charger: those that connect over OCPP (online, vendor, model, connector status) and one kept in Monta (id monta-<n>: cable plugged in, charging now). With each, its smart-charging settings and the current plan.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     guard(async () => {
       const chargers = store.list().map((s) => {
         const st = store.state(s.id);
+        const m = montaStatus(s.id);
         return {
           id: s.id,
+          ...(isMonta(s.id) ? { via: "monta", plugged_in: m?.pluggedIn ?? false, charging_now: m?.charging ?? false, ...(m?.lastAction ? { last_action: m.lastAction } : {}), ...(m?.montaScheduling ? { problem: "Monta's own smart charging keeps scheduling charges. Ask the owner to turn it off in the Monta app so LadeMCP can decide." } : {}), ...(m?.error ? { error: m.error } : {}) } : {}),
           ...(s.label ? { label: s.label } : {}),
-          online: isConnected(s.id),
+          online: isMonta(s.id) ? !m?.error : isConnected(s.id),
           ...(st.vendor ? { vendor: st.vendor, model: st.model } : {}),
           connectors: st.status,
           smart_charging: s.smart,
@@ -206,6 +209,11 @@ export function registerTools(server: McpServer): void {
     guard(async ({ charger_id, ...input }) => {
       charger(charger_id);
       const s = store.update(charger_id, toPatch(input));
+      if (isMonta(charger_id)) {
+        replanMonta();
+        await montaCheck();
+        return json({ saved: s, note: "A new plan is made from these settings; LadeMCP starts and stops the charge through Monta." });
+      }
       if (!s.smart || !isConnected(charger_id)) return json({ saved: s });
       const p = await makePlan(s);
       const status = await applyPlan(charger_id, p);
@@ -224,6 +232,11 @@ export function registerTools(server: McpServer): void {
     guard(async ({ charger_id }) => {
       charger(charger_id);
       const s = store.update(charger_id, { smart: true });
+      if (isMonta(charger_id)) {
+        replanMonta();
+        await montaCheck();
+        return json({ smart_charging: true, plan: planView(await makePlan(s), s), note: "LadeMCP starts and stops the charge through Monta in the planned quarter-hours, checking once a minute." });
+      }
       const p = await makePlan(s);
       const status = await applyPlan(charger_id, p);
       if (status === "NotSupported" || status === "Rejected") {
@@ -244,6 +257,10 @@ export function registerTools(server: McpServer): void {
     guard(async ({ charger_id }) => {
       charger(charger_id);
       store.update(charger_id, { smart: false });
+      if (isMonta(charger_id)) {
+        await montaCheck();
+        return json({ smart_charging: false, note: "Charging is started through Monta now and left running. Use start_smart_charging to go back to the plan." });
+      }
       const status = await clearPlan(charger_id);
       return json({ charger_status: status, smart_charging: false, note: status === "Unknown" ? "The charger had no schedule from this server." : "Charging at full power." });
     }),
