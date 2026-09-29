@@ -8,7 +8,7 @@
 // The charger always opens the connection, to <url>/<charge point id>, and
 // asks for the "ocpp1.6" subprotocol. We answer its calls (BootNotification,
 // StatusNotification, …) and make our own (SetChargingProfile) on the same socket.
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -168,7 +168,10 @@ function authorized(id: string, req: IncomingMessage): boolean {
   const header = req.headers.authorization ?? "";
   if (!header.startsWith("Basic ")) return false;
   const [user, ...rest] = Buffer.from(header.slice(6), "base64").toString("utf8").split(":");
-  return user === id && rest.join(":") === config.ocppPassword;
+  const given = Buffer.from(rest.join(":"));
+  const want = Buffer.from(config.ocppPassword);
+  // Constant time, like the MCP token: a plain === lets response timing reveal the password bit by bit.
+  return user === id && given.length === want.length && timingSafeEqual(given, want);
 }
 
 export function createOcppServer() {
