@@ -59,6 +59,11 @@ const T = {
     at: "Kl.",
     montaFights: "Monta planlægger selv opladningen. Slå smart opladning fra i Monta-appen, så LadeMCP kan bestemme, hvornår bilen lader.",
     savedToCharger: "Gemmes på din ladestander.",
+    stopNow: "Stop opladningen",
+    chargeNow: "Lad nu",
+    followPlan: "Følg planen igen",
+    pausedNote: "Stoppet, indtil bilen tages ud.",
+    nowNote: "Lader med det samme, uden plan.",
   },
   en: {
     title: "Charging tonight",
@@ -103,6 +108,11 @@ const T = {
     at: "At",
     montaFights: "Monta is scheduling the charging itself. Turn off smart charging in the Monta app so LadeMCP can decide when the car charges.",
     savedToCharger: "Saved to your charger.",
+    stopNow: "Stop charging",
+    chargeNow: "Charge now",
+    followPlan: "Follow the plan again",
+    pausedNote: "Stopped until the car is unplugged.",
+    nowNote: "Charging right away, no plan.",
   },
 };
 
@@ -227,6 +237,7 @@ export function homePage(lang: Lang): string {
       <li><label for="power">${t.power}</label><select id="power">${powerOptions}</select></li>
       <li><label for="area">${t.area}</label><select id="area"><option value="DK1">${t.west}</option><option value="DK2">${t.east}</option></select></li>
     </ul>
+    <div id="actions" hidden style="margin:14px 0 0"><p class="muted small" id="modeNote" style="margin:0 0 8px"></p><button class="ghost full" id="act" style="margin:0"></button></div>
     <p class="muted small" id="savedNote" hidden style="margin:10px 0 0">${t.savedToCharger}</p>
     <p class="small" id="fight" style="color:var(--err);margin:10px 0 0"></p>
     <div class="warn" id="warn"></div>
@@ -365,10 +376,38 @@ async function update() {
 }
 const soon = () => { clearTimeout(timer); timer = setTimeout(update, 150); };
 for (const el of Object.values(inputs)) el.addEventListener(el.type === "range" ? "input" : "change", soon);
+/** Stop / charge now / follow the plan, depending on what the charger is doing. */
+function renderActions(c) {
+  if (!c.via_monta) return;
+  const mode = c.paused ? "plan" : !c.settings.smart ? "plan" : c.charging_now ? "stop" : "now";
+  $("modeNote").textContent = c.paused ? T.pausedNote : !c.settings.smart ? T.nowNote : "";
+  $("modeNote").hidden = !$("modeNote").textContent;
+  const b = $("act");
+  b.textContent = mode === "stop" ? T.stopNow : mode === "now" ? T.chargeNow : T.followPlan;
+  b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await fetch("/api/my-charger/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: mode }) });
+      const fresh = await (await fetch("/api/my-charger")).json();
+      renderActions(fresh);
+      renderState(fresh);
+    } catch {} finally { b.disabled = false; }
+  };
+  $("actions").hidden = false;
+}
+
+function renderState(c) {
+  const bits = [c.connected ? T.online : T.offline];
+  if (c.plugged_in) bits.push(T.pluggedIn);
+  if (c.charging_now) bits.push(T.chargingNow);
+  $("chargerState").replaceChildren(Object.assign(document.createElement("span"), { className: "dot" + (c.connected ? " ok" : ""), textContent: bits.join(" · ") }));
+}
+
 // The owner sees their own charger: its settings replace the ones kept in this browser, and changes are saved to it.
 fetch("/api/my-charger").then((r) => (r.ok ? r.json() : null)).then((c) => {
   if (!c) return update();
   mine = true;
+  renderActions(c);
   const s = c.settings;
   inputs.ready.value = s.ready_by; inputs.kwh.value = String(s.energy_kwh); inputs.green.value = String(s.green_weight);
   inputs.power.value = s.max_amps + "x" + s.phases; inputs.area.value = s.price_area;
@@ -376,10 +415,7 @@ fetch("/api/my-charger").then((r) => (r.ok ? r.json() : null)).then((c) => {
     const o = Object.assign(document.createElement("option"), { value: el === inputs.kwh ? String(s.energy_kwh) : s.max_amps + "x" + s.phases, textContent: el === inputs.kwh ? s.energy_kwh + " kWh" : Math.round(s.max_amps * 230 * s.phases / 100) / 10 + " kW" });
     el.append(o); el.value = o.value;
   }
-  const bits = [c.connected ? T.online : T.offline];
-  if (c.plugged_in) bits.push(T.pluggedIn);
-  if (c.charging_now) bits.push(T.chargingNow);
-  $("chargerState").replaceChildren(Object.assign(document.createElement("span"), { className: "dot" + (c.connected ? " ok" : ""), textContent: bits.join(" · ") }));
+  renderState(c);
   if (c.monta_scheduling) $("fight").textContent = T.montaFights;
   $("savedNote").hidden = false;
   update();

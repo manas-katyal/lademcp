@@ -28,12 +28,15 @@ export interface MontaStatus {
   montaScheduling?: boolean;
   /** Someone started a charge in the Monta app; it is left running until the cable comes out. */
   manualCharge?: boolean;
+  paused?: boolean;
 }
 
 interface Session {
   pluggedAt: Date;
   /** Charges this server started; any other running charge was started by the charger or by a person. */
   ours: Set<string>;
+  /** "Stop charging" was pressed: no charging until the cable comes out or the plan is resumed. */
+  paused?: boolean;
   plan?: Plan;
   plannedAt?: number;
 }
@@ -76,6 +79,15 @@ async function accessToken(): Promise<string> {
   if (token && Date.now() - token.at < 45 * 60_000) return token.value;
   token = { value: await montaToken(keys.clientId, keys.clientSecret), at: Date.now() };
   return token.value;
+}
+
+/** Stop now and stay stopped until the cable comes out or the plan is resumed. */
+export function pauseMonta(): void {
+  if (session) session.paused = true;
+}
+
+export function resumeMonta(): void {
+  if (session) session.paused = false;
 }
 
 /** Forget the current plan, so the next check makes a new one (settings changed, smart charging turned on). */
@@ -144,6 +156,21 @@ export async function montaCheck(now = new Date()): Promise<void> {
     // A charge we did not start, running more than a few minutes after the cable went in, was started by a
     // person (the Monta app, an RFID tag). That is a wish to charge now: leave it alone until the cable comes out.
     // One right after plug-in is the charger starting by itself, which the plan overrules.
+    st.paused = Boolean(session.paused);
+    if (session.paused) {
+      // Asked to stop: whoever started it, it stops.
+      if (running) {
+        try {
+          await montaStopCharge(t, active!.id);
+          st.charging = false;
+          st.lastAction = { at: now.toISOString(), action: "stop", ok: true, why: "stopped by hand" };
+          log(`${id}: stop (stopped by hand)`);
+        } catch (err) {
+          log(`${id}: stop failed: ${(err as Error).message}`);
+        }
+      }
+      return;
+    }
     const theirs = running && active && !session.ours.has(String(active.id));
     if (theirs && now.getTime() - session.pluggedAt.getTime() > 3 * 60_000) {
       if (!st.manualCharge) log(`${id}: charge ${active!.id} was started by hand; leaving it running`);

@@ -18,7 +18,7 @@ import { store } from "./store.ts";
 import { setup } from "./setup.ts";
 import { areaPage, assistantPage, donePage, ownerPage } from "./setup-page.ts";
 import { MontaError, montaChargePoints, montaToken } from "./monta.ts";
-import { isMonta, MONTA_PREFIX, montaStatus, replanMonta } from "./monta-control.ts";
+import { isMonta, MONTA_PREFIX, montaCheck, montaStatus, pauseMonta, replanMonta, resumeMonta } from "./monta-control.ts";
 import type { Request, Response, NextFunction } from "express";
 
 function tokenMatches(token: string | undefined): boolean {
@@ -188,7 +188,28 @@ export function createApp() {
       plugged_in: m?.pluggedIn ?? false,
       charging_now: m?.charging ?? false,
       monta_scheduling: m?.montaScheduling ?? false,
+      via_monta: isMonta(c.id),
+      paused: m?.paused ?? false,
     });
+  });
+  // The front page's buttons: stop now, charge now, or follow the plan again.
+  app.post("/api/my-charger/action", ownerOnly, async (req, res) => {
+    const c = myCharger();
+    const action = req.body?.action;
+    if (!c || !isMonta(c.id)) return res.status(404).json({ error: "no_monta_charger" });
+    if (action === "stop") {
+      store.update(c.id, { smart: true });
+      pauseMonta();
+    } else if (action === "now") {
+      store.update(c.id, { smart: false });
+      resumeMonta();
+    } else if (action === "plan") {
+      store.update(c.id, { smart: true });
+      resumeMonta();
+      replanMonta();
+    } else return res.status(400).json({ error: "bad_request" });
+    await montaCheck();
+    res.json({ ok: true });
   });
   app.post("/api/my-charger", ownerOnly, (req, res) => {
     const c = myCharger();

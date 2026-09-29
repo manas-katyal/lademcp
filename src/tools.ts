@@ -6,7 +6,7 @@ import { OcppError, isConnected, OCPP_PATH } from "./ocpp.ts";
 import { SLOT_MINUTES, round2, type Plan, type PlanTotals, type Slot } from "./planner.ts";
 import { applyPlan, clearPlan, danishTime, makePlan, summarize } from "./smart.ts";
 import { maxKw, store, type ChargerSettings } from "./store.ts";
-import { isMonta, montaCheck, montaStatus, replanMonta } from "./monta-control.ts";
+import { isMonta, montaCheck, montaStatus, pauseMonta, replanMonta, resumeMonta } from "./monta-control.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
 const fail = (message: string) => ({ content: [{ type: "text" as const, text: message }], isError: true });
@@ -233,6 +233,7 @@ export function registerTools(server: McpServer): void {
       charger(charger_id);
       const s = store.update(charger_id, { smart: true });
       if (isMonta(charger_id)) {
+        resumeMonta();
         replanMonta();
         await montaCheck();
         return json({ smart_charging: true, plan: planView(await makePlan(s), s), note: "LadeMCP starts and stops the charge through Monta in the planned quarter-hours, checking once a minute." });
@@ -258,11 +259,30 @@ export function registerTools(server: McpServer): void {
       charger(charger_id);
       store.update(charger_id, { smart: false });
       if (isMonta(charger_id)) {
+        resumeMonta();
         await montaCheck();
         return json({ smart_charging: false, note: "Charging is started through Monta now and left running. Use start_smart_charging to go back to the plan." });
       }
       const status = await clearPlan(charger_id);
       return json({ charger_status: status, smart_charging: false, note: status === "Unknown" ? "The charger had no schedule from this server." : "Charging at full power." });
+    }),
+  );
+
+  server.registerTool(
+    "stop_charging",
+    {
+      title: "Stop charging now",
+      description: "Stop the charge that is running and do not start again until the car is unplugged or start_smart_charging is called. For when charging right now is too expensive or not wanted. Chargers in Monta only for now.",
+      inputSchema: { charger_id: z.string() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    guard(async ({ charger_id }) => {
+      charger(charger_id);
+      if (!isMonta(charger_id)) throw new ToolError("Stopping by hand only works for a charger in Monta so far. For an OCPP charger, change ready_by or energy_kwh with update_charger instead.");
+      store.update(charger_id, { smart: true });
+      pauseMonta();
+      await montaCheck();
+      return json({ stopped: true, note: "No charging until the car is unplugged or start_smart_charging is called." });
     }),
   );
 }
