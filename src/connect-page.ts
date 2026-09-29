@@ -3,6 +3,7 @@
 // waits until the charger dials in over OCPP. The steps per brand are the same
 // facts as the connection_guide tool, written for a person.
 import { esc, shell, type Lang } from "./pages.ts";
+import { rail, SETUP_CSS } from "./setup-page.ts";
 
 type Brand = { name: string; where?: string; serialHint?: string; steps?: string[]; note?: string; blocked?: string };
 
@@ -138,7 +139,6 @@ const T = {
     address: "Adresse",
     id: "Ladestander-id",
     password: "Adgangskode",
-    passwordValue: "OCPP-adgangskoden på serveren",
     oneField: "Har appen kun ét felt? Brug hele adressen:",
     copy: "Kopiér",
     copied: "Kopieret",
@@ -155,6 +155,7 @@ const T = {
     doneBody: (by: string, kwh: string) => `Hver gang bilen sættes i, lægger LadeMCP en plan: de billigste kvarterer, ${kwh} kWh klar kl. ${by}.`,
     doneNote: "Indstillingerne på forsiden gemmes ikke på ladestanderen endnu.",
     seePlan: "Se planen",
+    continueSetup: "Fortsæt",
   },
   en: {
     title: "Connect a charger",
@@ -173,7 +174,6 @@ const T = {
     address: "Address",
     id: "Charger id",
     password: "Password",
-    passwordValue: "The OCPP password set on the server",
     oneField: "Only one field in the app? Use the full address:",
     copy: "Copy",
     copied: "Copied",
@@ -190,6 +190,7 @@ const T = {
     doneBody: (by: string, kwh: string) => `Every time the car is plugged in, LadeMCP makes a plan: the cheapest quarter-hours, ${kwh} kWh ready by ${by}.`,
     doneNote: "The settings on the front page are not saved to the charger yet.",
     seePlan: "See the plan",
+    continueSetup: "Continue",
   },
 };
 
@@ -219,14 +220,14 @@ const CSS = `<style>
   .err{color:var(--err);font-size:13px;margin:6px 0 0;min-height:1.2em}
 </style>`;
 
-export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boolean; passwordRequired: boolean }): string {
+export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boolean; password: string; setup: boolean }): string {
   const t = T[lang];
   const brands = BRANDS[lang];
   const picks = Object.entries(brands)
     .map(([key, b]) => `<li><button class="pick" data-brand="${key}"><span>${esc(b.name)}</span><span class="chev"></span></button></li>`)
     .join("");
   const simulate = `npm run simulate -- ${opts.ocppBase.replace(/\/$/, "")} <span class="sid"></span>`;
-  const body = `${CSS}
+  const body = `${opts.setup ? SETUP_CSS + rail(lang, "charger") : ""}${CSS}
   <div class="card step" data-step="brand">
     <div class="pill">${t.title}</div>
     <h1>${t.which}</h1>
@@ -261,7 +262,7 @@ export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boo
     <ul class="rows">
       <li class="kv"><span>${t.address}</span><code>${esc(opts.ocppBase)}</code><button class="copy" data-copy="${esc(opts.ocppBase)}">${t.copy}</button></li>
       <li class="kv"><span>${t.id}</span><code class="sid"></code><button class="copy" id="copyId">${t.copy}</button></li>
-      ${opts.passwordRequired ? `<li class="kv"><span>${t.password}</span><span class="muted small">${t.passwordValue}</span></li>` : ""}
+      <li class="kv"><span>${t.password}</span><code>${esc(opts.password)}</code><button class="copy" data-copy="${esc(opts.password)}">${t.copy}</button></li>
     </ul>
     <p class="muted small" style="margin-top:12px">${t.oneField}<br><code id="fullUrl"></code></p>
     <p class="muted small" id="note"></p>
@@ -281,8 +282,7 @@ export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boo
     <div class="pill ok">${t.connected}</div>
     <h1 id="doneHead"></h1>
     <p id="doneBody"></p>
-    <p class="muted small">${t.doneNote}</p>
-    <a class="btn full" href="/">${t.seePlan}</a>
+    ${opts.setup ? `<a class="btn full" href="/setup">${t.continueSetup}</a>` : `<p class="muted small">${t.doneNote}</p>\n    <a class="btn full" href="/">${t.seePlan}</a>`}
   </div>
 <script>
 const T = ${JSON.stringify(clientStrings(lang))};

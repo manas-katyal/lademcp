@@ -47,9 +47,9 @@ export const config = {
   defaultPriceArea: (env.PRICE_AREA === "DK2" ? "DK2" : "DK1") as "DK1" | "DK2",
   tariffDkkPerKwh: parseTariff(env.NETTARIF_DKK_PER_KWH),
   tariffRaw: env.NETTARIF_DKK_PER_KWH,
-  /** Shared OCPP password (security profile 1: HTTP Basic, user = charge point id). */
+  /** Shared OCPP password (security profile 1: HTTP Basic, user = charge point id). Unset, setup.ts makes one. */
   ocppPassword: env.OCPP_PASSWORD,
-  /** Bearer token for POST /mcp on a hosted deployment. The stdio entry point needs none. */
+  /** Bearer token for POST /mcp on a hosted deployment. Unset, setup.ts makes one. The stdio entry point needs none. */
   mcpToken: env.MCP_BEARER_TOKEN,
   /** How long to wait for a charger to answer a call before giving up. OCPP-J suggests tens of seconds. */
   ocppCallTimeoutMs: Number(env.OCPP_CALL_TIMEOUT_MS ?? 30_000),
@@ -70,12 +70,6 @@ export function setupProblems(): string[] {
   }
   if (!config.tariffDkkPerKwh) {
     problems.push("No NETTARIF_DKK_PER_KWH set, so charging is planned on the spot price alone; the 17–21 peak tariff is not accounted for");
-  }
-  if (!config.ocppPassword && !isLocalUrl(config.baseUrl)) {
-    problems.push("OCPP_PASSWORD is not set on a public deployment, so any charger that knows the URL can connect");
-  }
-  if (!config.mcpToken && !isLocalUrl(config.baseUrl)) {
-    problems.push("MCP_BEARER_TOKEN is not set on a public deployment; POST /mcp is refused until it is, because its tools start and stop charging");
   }
   try {
     mkdirSync(config.dataDir, { recursive: true });

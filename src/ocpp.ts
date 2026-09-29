@@ -13,6 +13,7 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "./config.ts";
+import { setup } from "./setup.ts";
 import { store } from "./store.ts";
 
 export const OCPP_PATH = "/ocpp/";
@@ -165,12 +166,11 @@ export function call(id: string, action: string, payload: Record<string, unknown
 // --- Connection handling ---
 
 function authorized(id: string, req: IncomingMessage): boolean {
-  if (!config.ocppPassword) return true;
   const header = req.headers.authorization ?? "";
   if (!header.startsWith("Basic ")) return false;
   const [user, ...rest] = Buffer.from(header.slice(6), "base64").toString("utf8").split(":");
   const given = Buffer.from(rest.join(":"));
-  const want = Buffer.from(config.ocppPassword);
+  const want = Buffer.from(setup.ocppPassword());
   // Constant time, like the MCP token: a plain === lets response timing reveal the password bit by bit.
   return user === id && given.length === want.length && timingSafeEqual(given, want);
 }

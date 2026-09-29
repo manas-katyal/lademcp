@@ -167,7 +167,7 @@ export function registerTools(server: McpServer): void {
       return json({
         ocpp_url: ocppUrl(id),
         protocol: "OCPP 1.6J",
-        ...(config.ocppPassword ? { authentication: "HTTP Basic: user = the charger id, password = the OCPP password set on this server (security profile 1)" } : {}),
+        authentication: "HTTP Basic: user = the charger id, password = the charger password shown on this server's /setup page (security profile 1)",
         brands: [
           { brand: "Zaptec (Go, Pro)", how: "Zaptec Portal, installation owner or installer: Installation > Settings > Authentication, enable OCPP, then per charger Settings > OCPP and enter the URL. Direct OCPP turns off Zaptec's own smart features and app control; this server replaces them." },
           { brand: "Easee (Home, Charge, Lite)", how: "Direct OCPP needs firmware 344 or later (rolled out from 10 Sep 2026, beta) and Wi-Fi. It is switched on through the Easee API or an app that uses it; the charger keeps reporting to Easee Cloud in parallel." },

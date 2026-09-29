@@ -10,6 +10,7 @@ import { round2 } from "./planner.ts";
 import { makePlan, nextReadyBy } from "./smart.ts";
 import { isConnected } from "./ocpp.ts";
 import { defaults, store } from "./store.ts";
+import { setup } from "./setup.ts";
 
 const query = z.object({
   ready_by: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("07:00"),
@@ -17,7 +18,7 @@ const query = z.object({
   green_weight: z.coerce.number().min(0).max(1).default(0),
   max_amps: z.coerce.number().int().min(6).max(32).default(16),
   phases: z.coerce.number().pipe(z.union([z.literal(1), z.literal(3)])).default(3),
-  price_area: z.enum(["DK1", "DK2"]).default(config.defaultPriceArea),
+  price_area: z.enum(["DK1", "DK2"]).optional(),
 });
 
 export async function planHandler(req: Request, res: Response): Promise<void> {
@@ -27,7 +28,7 @@ export async function planHandler(req: Request, res: Response): Promise<void> {
     return;
   }
   const q = parsed.data;
-  const s = { ...defaults("preview"), readyBy: q.ready_by, energyKwh: q.energy_kwh, greenWeight: q.green_weight, maxAmps: q.max_amps, phases: q.phases, priceArea: q.price_area };
+  const s = { ...defaults("preview"), readyBy: q.ready_by, energyKwh: q.energy_kwh, greenWeight: q.green_weight, maxAmps: q.max_amps, phases: q.phases, priceArea: q.price_area ?? setup.priceArea() };
   const now = new Date();
   try {
     const p = await makePlan(s, now);

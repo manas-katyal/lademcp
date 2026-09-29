@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./config.ts";
 import type { PriceArea } from "./eds.ts";
+import { setup } from "./setup.ts";
 
 export interface ChargerSettings {
   id: string;
@@ -45,7 +46,7 @@ export interface ChargerState {
 export const defaults = (id: string): ChargerSettings => ({
   id,
   smart: true,
-  priceArea: config.defaultPriceArea,
+  priceArea: setup.priceArea(),
   readyBy: "07:00",
   energyKwh: 30,
   maxAmps: 16,
