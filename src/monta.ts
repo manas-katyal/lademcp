@@ -41,7 +41,11 @@ async function call(path: string, init: RequestInit & { token?: string } = {}): 
   }
   if (res.status === 400 || res.status === 401 || res.status === 403) throw new MontaError("bad_keys", `Monta refused the keys (${res.status})`);
   if (!res.ok) throw new MontaError("unreachable", `Monta answered ${res.status} to ${init.method ?? "GET"} ${path.split("?")[0]}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
-  return res.json();
+  // Monta's ids can be larger than a JavaScript number holds exactly (892753960160181xxx), and a rounded id
+  // is a different charge. Keep any integer that does not fit as the text Monta sent.
+  return JSON.parse(await res.text(), (_key, value, ctx?: { source?: string }) =>
+    typeof value === "number" && !Number.isSafeInteger(value) && ctx?.source && /^-?\d+$/.test(ctx.source) ? ctx.source : value,
+  );
 }
 
 export async function montaToken(clientId: string, clientSecret: string): Promise<string> {
@@ -84,7 +88,8 @@ export async function montaChargePoint(token: string, id: number): Promise<Monta
 }
 
 interface MontaCharge {
-  id: number;
+  /** A number, or the exact digits as text when it is too large for one. */
+  id: number | string;
   state: string;
   chargePointId?: number;
   startedAt?: string;
@@ -116,11 +121,11 @@ export async function montaChargesSince(token: string, chargePointId: number, si
 }
 
 /** Starts a charge and returns its id. */
-export async function montaStartCharge(token: string, chargePointId: number): Promise<number | undefined> {
-  const d = (await call("/charges", { method: "POST", token, body: JSON.stringify({ chargePointId }) })) as { id?: number };
-  return typeof d.id === "number" ? d.id : undefined;
+export async function montaStartCharge(token: string, chargePointId: number): Promise<string | undefined> {
+  const d = (await call("/charges", { method: "POST", token, body: JSON.stringify({ chargePointId }) })) as { id?: number | string };
+  return d.id === undefined ? undefined : String(d.id);
 }
 
-export async function montaStopCharge(token: string, chargeId: number): Promise<void> {
+export async function montaStopCharge(token: string, chargeId: number | string): Promise<void> {
   await call(`/charges/${chargeId}/stop`, { method: "POST", token });
 }

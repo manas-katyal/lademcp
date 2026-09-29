@@ -33,7 +33,7 @@ export interface MontaStatus {
 interface Session {
   pluggedAt: Date;
   /** Charges this server started; any other running charge was started by the charger or by a person. */
-  ours: Set<number>;
+  ours: Set<string>;
   plan?: Plan;
   plannedAt?: number;
 }
@@ -144,7 +144,7 @@ export async function montaCheck(now = new Date()): Promise<void> {
     // A charge we did not start, running more than a few minutes after the cable went in, was started by a
     // person (the Monta app, an RFID tag). That is a wish to charge now: leave it alone until the cable comes out.
     // One right after plug-in is the charger starting by itself, which the plan overrules.
-    const theirs = running && active && !session.ours.has(active.id);
+    const theirs = running && active && !session.ours.has(String(active.id));
     if (theirs && now.getTime() - session.pluggedAt.getTime() > 3 * 60_000) {
       if (!st.manualCharge) log(`${id}: charge ${active!.id} was started by hand; leaving it running`);
       st.manualCharge = true;
