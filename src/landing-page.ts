@@ -118,9 +118,9 @@ export function landingPage(lang: Lang): string {
   .how{padding:22px 24px;border-radius:20px;background:var(--card);box-shadow:0 0 0 1px var(--line)}
   .how b{display:block;font-weight:500;font-size:18px;margin-bottom:6px}.how p{color:var(--muted);font-size:15px}
   h2{font-size:clamp(26px,3.6vw,36px);font-weight:500;text-align:center;margin:clamp(56px,9vw,96px) 0 24px}
-  .charge{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start}
+  .charge{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:stretch}
   @media (max-width:860px){.charge{grid-template-columns:1fr}}
-  .card{background:var(--card);border-radius:22px;box-shadow:0 0 0 1px var(--line);padding:clamp(22px,3.5vw,34px)}
+  .card{background:var(--card);border-radius:22px;box-shadow:0 0 0 1px var(--line);padding:clamp(22px,3.5vw,34px);display:flex;flex-direction:column}
   .card h3{font-size:19px;font-weight:500}
   .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
   .pill{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--ok)}
@@ -144,7 +144,7 @@ export function landingPage(lang: Lang): string {
   ul.chips li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px 11px 16px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;font-weight:500}
   ul.chips li::after{content:"";flex:none;width:18px;height:18px;border-radius:50%;background:var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/11px no-repeat}
   ul.chips li.first{grid-column:1/-1;background:var(--alt)}
-  .cannot{margin-top:16px;color:var(--faint);font-size:14px}
+  .cannot{margin-top:auto;padding-top:16px;color:var(--faint);font-size:14px}
   footer{margin:clamp(56px,9vw,96px) 0 40px;color:var(--faint);font-size:13px;text-align:center}
   @media (prefers-reduced-motion:reduce){.btn{transition:none}}
 </style>
