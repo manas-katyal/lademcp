@@ -20,7 +20,8 @@ const T = {
     },
     passwordHint: "Mindst 8 tegn.",
     ownerGo: "Fortsæt",
-    ownerErr: { short: "Adgangskoden skal have mindst 8 tegn.", wrong: "Forkert adgangskode.", throttled: "For mange forsøg. Prøv igen om et kvarter.", taken: "Serveren er lige blevet gjort til nogens. Log ind i stedet." },
+    noVolume: "Serveren har ikke noget volume, så den glemmer sin opsætning ved hver deploy. I Railway: højreklik på servicen › Attach volume, monteret på /data. Genindlæs så denne side.",
+    ownerErr: { no_volume: "Tilføj først et volume på /data, se ovenfor.", short: "Adgangskoden skal have mindst 8 tegn.", wrong: "Forkert adgangskode.", throttled: "For mange forsøg. Prøv igen om et kvarter.", taken: "Serveren er lige blevet gjort til nogens. Log ind i stedet." },
     areaHead: "Hvor bor du?",
     areaBody: "Elprisen er forskellig øst og vest for Storebælt, så LadeMCP skal vide, hvilken pris din ladestander skal planlægge efter.",
     west: "Vest for Storebælt",
@@ -70,7 +71,8 @@ const T = {
     },
     passwordHint: "At least 8 characters.",
     ownerGo: "Continue",
-    ownerErr: { short: "The password needs at least 8 characters.", wrong: "Wrong password.", throttled: "Too many tries. Try again in fifteen minutes.", taken: "Someone just made this server theirs. Log in instead." },
+    noVolume: "This server has no volume, so it forgets its setup on every deploy. In Railway: right-click the service › Attach volume, mounted at /data. Then reload this page.",
+    ownerErr: { no_volume: "Add a volume at /data first, see above.", short: "The password needs at least 8 characters.", wrong: "Wrong password.", throttled: "Too many tries. Try again in fifteen minutes.", taken: "Someone just made this server theirs. Log in instead." },
     areaHead: "Where do you live?",
     areaBody: "Electricity prices differ east and west of the Great Belt, so LadeMCP needs to know which price your charger should plan on.",
     west: "West of the Great Belt",
@@ -167,7 +169,7 @@ for (const b of document.querySelectorAll("[data-post]")) b.addEventListener("cl
 export type OwnerMode = "claim" | "login" | "password";
 
 /** Becoming the owner (first visitor), logging in (another device), or adding a password (claimed before there were any). */
-export function ownerPage(lang: Lang, mode: OwnerMode): string {
+export function ownerPage(lang: Lang, mode: OwnerMode, opts: { noVolume?: boolean } = {}): string {
   const t = T[lang];
   const m = t.owner[mode];
   return shell(lang, t.title, "/setup", `${SETUP_CSS}
@@ -175,6 +177,7 @@ export function ownerPage(lang: Lang, mode: OwnerMode): string {
     <div class="pill">${t.title}</div>
     <h1>${m.head}</h1>
     <p class="muted">${m.body}</p>
+    ${opts.noVolume ? `<div class="box" style="border-color:var(--err)">${t.noVolume}</div>` : ""}
     <label class="field" for="pw">${m.label}</label>
     <input class="text" id="pw" type="password" autocomplete="${mode === "login" ? "current-password" : "new-password"}" minlength="8" required>
     ${mode === "login" ? "" : `<p class="muted small" style="margin:6px 0 0">${t.passwordHint}</p>`}

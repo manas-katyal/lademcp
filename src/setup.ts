@@ -12,7 +12,7 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { config, isLocalUrl } from "./config.ts";
+import { config, isLocalUrl, noVolume } from "./config.ts";
 import type { PriceArea } from "./eds.ts";
 
 interface SetupFile {
@@ -118,7 +118,8 @@ export const setup = {
   },
 
   /** The first visitor becomes the owner by choosing a password. */
-  claim(password: string): "ok" | "taken" | "short" {
+  claim(password: string): "ok" | "taken" | "short" | "no_volume" {
+    if (noVolume()) return "no_volume";
     if (load().claimedAt) return "taken";
     if (password.length < MIN_PASSWORD) return "short";
     update({ claimedAt: new Date().toISOString(), ownerHash: hash(password) });

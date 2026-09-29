@@ -142,3 +142,14 @@ test("a browser that claimed the server before passwords is asked to choose one"
   const fresh = set.headers.get("set-cookie")!.split(";")[0];
   assert.match(await (await fetch(url("/setup"), { headers: { cookie: fresh } })).text(), /LadeMCP er sat op/);
 });
+
+test("on Railway without a volume, nobody can claim the server", async () => {
+  const { setup: s } = await import("../src/setup.ts");
+  process.env.RAILWAY_ENVIRONMENT = "production";
+  delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  try {
+    assert.equal(s.claim("hemmelig-lader-2"), "no_volume");
+  } finally {
+    delete process.env.RAILWAY_ENVIRONMENT;
+  }
+});
