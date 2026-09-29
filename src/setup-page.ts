@@ -13,12 +13,14 @@ const T = {
     title: "Opsætning",
     rail: { area: "Område", charger: "Ladestander", assistant: "Claude" } as Record<SetupStep, string>,
     railLabel: "Opsætningens trin",
-    claimHead: "Gør serveren til din",
-    claimBody: "Første gang skal du vise, at det er din server. Koden står i serverens log, fx under Deployments › Logs på Railway, i linjen der starter med »Setup«.",
-    claimLabel: "Kode fra loggen",
-    claimGo: "Fortsæt",
-    claimWrong: "Koden passer ikke. Tjek loggen igen, den skifter ved hver genstart.",
-    claimLocked: "For mange forkerte forsøg. Genstart serveren for at få en ny kode.",
+    owner: {
+      claim: { head: "Gør serveren til din", body: "Du er den første her, så serveren bliver din. Vælg en adgangskode, så du også kan komme ind fra andre enheder.", label: "Vælg en adgangskode" },
+      login: { head: "Log ind", body: "Serveren er sat op. Skriv adgangskoden for at komme videre.", label: "Adgangskode" },
+      password: { head: "Vælg en adgangskode", body: "Så kan du komme ind fra andre enheder end denne.", label: "Ny adgangskode" },
+    },
+    passwordHint: "Mindst 8 tegn.",
+    ownerGo: "Fortsæt",
+    ownerErr: { short: "Adgangskoden skal have mindst 8 tegn.", wrong: "Forkert adgangskode.", throttled: "For mange forsøg. Prøv igen om et kvarter.", taken: "Serveren er lige blevet gjort til nogens. Log ind i stedet." },
     areaHead: "Hvor bor du?",
     areaBody: "Elprisen er forskellig øst og vest for Storebælt, så LadeMCP skal vide, hvilken pris din ladestander skal planlægge efter.",
     west: "Vest for Storebælt",
@@ -61,12 +63,14 @@ const T = {
     title: "Setup",
     rail: { area: "Area", charger: "Charger", assistant: "Claude" } as Record<SetupStep, string>,
     railLabel: "Setup steps",
-    claimHead: "Make this server yours",
-    claimBody: "The first time, you show that this is your server. The code is in the server's log, for example under Deployments › Logs on Railway, on the line starting with “Setup”.",
-    claimLabel: "Code from the log",
-    claimGo: "Continue",
-    claimWrong: "That code does not match. Check the log again; it changes on every restart.",
-    claimLocked: "Too many wrong tries. Restart the server to get a new code.",
+    owner: {
+      claim: { head: "Make this server yours", body: "You are the first one here, so the server becomes yours. Choose a password so you can also get in from other devices.", label: "Choose a password" },
+      login: { head: "Log in", body: "This server is set up. Enter the password to continue.", label: "Password" },
+      password: { head: "Choose a password", body: "Then you can get in from other devices than this one.", label: "New password" },
+    },
+    passwordHint: "At least 8 characters.",
+    ownerGo: "Continue",
+    ownerErr: { short: "The password needs at least 8 characters.", wrong: "Wrong password.", throttled: "Too many tries. Try again in fifteen minutes.", taken: "Someone just made this server theirs. Log in instead." },
     areaHead: "Where do you live?",
     areaBody: "Electricity prices differ east and west of the Great Belt, so LadeMCP needs to know which price your charger should plan on.",
     west: "West of the Great Belt",
@@ -147,7 +151,7 @@ const copyRow = (label: string, value: string, copy: string) =>
   `<li class="kv${value.length > 28 ? " stack" : ""}"><span>${label}</span><code>${esc(value)}</code><button class="copy" type="button" data-copy="${esc(value)}">${copy}</button></li>`;
 
 const SCRIPT = (t: (typeof T)[Lang]) => `<script>
-const T = ${JSON.stringify({ copy: t.copy, copied: t.copied, claimWrong: t.claimWrong, claimLocked: t.claimLocked, aiSeen: t.aiSeen })};
+const T = ${JSON.stringify({ copy: t.copy, copied: t.copied, aiSeen: t.aiSeen, err: t.ownerErr })};
 const $ = (id) => document.getElementById(id);
 const post = (path, body) => fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
 for (const b of document.querySelectorAll("button.copy[data-copy]")) b.addEventListener("click", async () => {
@@ -160,30 +164,34 @@ for (const b of document.querySelectorAll("[data-post]")) b.addEventListener("cl
 });
 </script>`;
 
-export function claimPage(lang: Lang): string {
+export type OwnerMode = "claim" | "login" | "password";
+
+/** Becoming the owner (first visitor), logging in (another device), or adding a password (claimed before there were any). */
+export function ownerPage(lang: Lang, mode: OwnerMode): string {
   const t = T[lang];
+  const m = t.owner[mode];
   return shell(lang, t.title, "/setup", `${SETUP_CSS}
-  <form class="card step" id="claim" novalidate>
+  <form class="card step" id="owner" novalidate>
     <div class="pill">${t.title}</div>
-    <h1>${t.claimHead}</h1>
-    <p class="muted">${t.claimBody}</p>
-    <label class="field" for="code">${t.claimLabel}</label>
-    <input class="text" id="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="20" required>
+    <h1>${m.head}</h1>
+    <p class="muted">${m.body}</p>
+    <label class="field" for="pw">${m.label}</label>
+    <input class="text" id="pw" type="password" autocomplete="${mode === "login" ? "current-password" : "new-password"}" minlength="8" required>
+    ${mode === "login" ? "" : `<p class="muted small" style="margin:6px 0 0">${t.passwordHint}</p>`}
     <p class="err" id="err" aria-live="polite"></p>
-    <button class="full" type="submit">${t.claimGo}</button>
+    <button class="full" type="submit">${t.ownerGo}</button>
   </form>
 ${SCRIPT(t)}
 <script>
-async function claim(code) {
-  const res = await post("/setup/claim", { code }).catch(() => null);
-  if (res && res.ok) { history.replaceState(null, "", "/setup"); location.reload(); return; }
+$("pw").focus();
+$("owner").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const res = await post(${JSON.stringify(`/setup/${mode}`)}, { password: $("pw").value }).catch(() => null);
+  if (res && res.ok) return location.reload();
   const d = res ? await res.json().catch(() => ({})) : {};
-  $("err").textContent = d.error === "locked" ? T.claimLocked : T.claimWrong;
-}
-$("claim").addEventListener("submit", (e) => { e.preventDefault(); claim($("code").value); });
-// The link in the log carries the code, so opening it is all it takes.
-const preset = new URLSearchParams(location.search).get("code");
-if (preset) { $("code").value = preset; claim(preset); } else $("code").focus();
+  $("err").textContent = T.err[d.error] || T.err.wrong;
+  if (d.error === "taken") setTimeout(() => location.reload(), 1500);
+});
 </script>`, `<p>LadeMCP</p>`);
 }
 

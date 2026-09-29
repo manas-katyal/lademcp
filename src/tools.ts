@@ -167,12 +167,13 @@ export function registerTools(server: McpServer): void {
       return json({
         ocpp_url: ocppUrl(id),
         protocol: "OCPP 1.6J",
-        authentication: "HTTP Basic: user = the charger id, password = the charger password shown on this server's /setup page (security profile 1)",
+        authentication: "HTTP Basic: user = the charger id, password = the charger password shown on this server's /setup page (security profile 1). A charger with no password field (EVBox Elvi) puts it in the address instead: <base>/ocpp/<password>/ and the charger adds its own id.",
         brands: [
           { brand: "Zaptec (Go, Pro)", how: "Zaptec Portal, installation owner or installer: Installation > Settings > Authentication, enable OCPP, then per charger Settings > OCPP and enter the URL. Direct OCPP turns off Zaptec's own smart features and app control; this server replaces them." },
           { brand: "Easee (Home, Charge, Lite)", how: "Direct OCPP needs firmware 344 or later (rolled out from 10 Sep 2026, beta) and Wi-Fi. It is switched on through the Easee API or an app that uses it; the charger keeps reporting to Easee Cloud in parallel." },
           { brand: "Wallbox (Pulsar Plus, Pulsar Max)", how: "myWallbox app: charger > Settings > OCPP, enable the WebSocket connection and enter the URL and charge point id. Some Wallbox app features pause while OCPP is on." },
           { brand: "myenergi zappi", how: "Only zappi with built-in Wi-Fi (serial starting with 2) on firmware 5.114 or later; charging profiles need 5.5. Set up in the myenergi app under OCPP. The myenergi app keeps working." },
+          { brand: "EVBox Elvi", how: "EVBox Connect app over Bluetooth, installation mode (code that came with the charger): Charging management platform > Other backend URL. Firmware 424 or later. The URL must end with /. Only one platform at a time, so billing through Monta or an employer stops. EVBox Livo cannot connect: EVBox closed it to other platforms." },
           { brand: "Clever, Tesla Wall Connector Gen 3, leased chargers", how: "Cannot connect: Clever boxes only talk to Clever's backend, Gen 3 has no OCPP, and leased boxes are the operator's. These need the car's own API or a partnership instead." },
         ],
       });

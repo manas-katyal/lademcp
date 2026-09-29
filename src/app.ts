@@ -16,7 +16,7 @@ import { homePage, LANG_COOKIE, langOf } from "./pages.ts";
 import { chargerHandler, planHandler } from "./api.ts";
 import { store } from "./store.ts";
 import { setup } from "./setup.ts";
-import { areaPage, assistantPage, claimPage, donePage } from "./setup-page.ts";
+import { areaPage, assistantPage, donePage, ownerPage } from "./setup-page.ts";
 import type { Request, Response, NextFunction } from "express";
 
 function tokenMatches(token: string | undefined): boolean {
@@ -82,8 +82,9 @@ export function createApp() {
   app.get("/setup", (req, res) => {
     const lang = langOf(req);
     res.set("Cache-Control", "no-store");
-    if (!setup.isOwner(req)) return res.type("html").send(claimPage(lang));
     const s = setup.status();
+    if (!setup.isOwner(req)) return res.type("html").send(ownerPage(lang, s.claimed ? "login" : "claim"));
+    if (!s.hasPassword) return res.type("html").send(ownerPage(lang, "password"));
     if (!s.priceArea) return res.type("html").send(areaPage(lang));
     const chargers = store.list();
     if (!chargers.length) return res.redirect(303, "/connect");
@@ -100,9 +101,21 @@ export function createApp() {
       }),
     );
   });
+  const password = (req: Request) => String(req.body?.password ?? "");
   app.post("/setup/claim", (req, res) => {
-    const result = setup.claim(String(req.body?.code ?? ""));
-    if (result !== "ok") return res.status(result === "locked" ? 429 : 400).json({ error: result });
+    const result = setup.claim(password(req));
+    if (result !== "ok") return res.status(result === "taken" ? 409 : 400).json({ error: result });
+    res.set("Set-Cookie", setup.ownerCookie()).json({ ok: true });
+  });
+  app.post("/setup/login", (req, res) => {
+    const result = setup.login(password(req));
+    if (result !== "ok") return res.status(result === "throttled" ? 429 : 401).json({ error: result });
+    res.set("Set-Cookie", setup.ownerCookie()).json({ ok: true });
+  });
+  // A new password changes the cookie, so the browser that set it gets the new one.
+  app.post("/setup/password", ownerOnly, (req, res) => {
+    const result = setup.setPassword(password(req));
+    if (result !== "ok") return res.status(400).json({ error: result });
     res.set("Set-Cookie", setup.ownerCookie()).json({ ok: true });
   });
   app.post("/setup/area", ownerOnly, (req, res) => {
@@ -112,6 +125,10 @@ export function createApp() {
     // Chargers that dialled in before the area was chosen got the default.
     for (const c of store.list()) store.update(c.id, { priceArea: area });
     res.json({ ok: true });
+  });
+  // For /connect's waiting step: a charger may announce itself under a slightly different id than the serial typed.
+  app.get("/setup/chargers", ownerOnly, (_req, res) => {
+    res.set("Cache-Control", "no-store").json(store.list().map((c) => ({ id: c.id, connected: isConnected(c.id) })));
   });
   app.get("/setup/state", ownerOnly, (_req, res) => {
     const s = setup.status();

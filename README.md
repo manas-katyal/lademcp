@@ -37,13 +37,13 @@ Claude Code, local: `claude mcp add lade -s user -- node ~/lademcp/src/stdio.ts`
 
 ## Setup
 
-Deploy it, then open the link the server prints in its log (`Setup: open https://…/setup?code=…`). It walks you through three steps, and the rest of the site stays closed until they are done:
+Deploy it and open `/setup`. The first person there becomes the owner by choosing a password (like Home Assistant), so open it right after deploying. It walks you through three steps, and the rest of the site stays closed until they are done:
 
 1. **Area**: DK1 (Jutland, Funen) or DK2 (Zealand, the islands, Bornholm).
 2. **Charger**: brand, serial number, and the address and password to enter in the charger's app. The page waits until the charger dials in.
 3. **Claude**: an address with your key in it (`/mcp/<token>`) to paste into Claude under Settings › Connectors, the same way as EnergiMCP.
 
-The server makes its own charger password and MCP token on first start and keeps them in `DATA_DIR/setup.json`. `/setup` shows them again later, but only in the browser that claimed the server.
+The server makes its own charger password and MCP token on first start and keeps them in `DATA_DIR/setup.json`. `/setup` shows them again later, to the owner only; the password logs in from other devices. A charger with no password field (EVBox Elvi) gets it in the address instead: `wss://…/ocpp/<password>/`, and the charger adds its own id.
 
 ## Configuration
 

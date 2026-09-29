@@ -175,6 +175,12 @@ function authorized(id: string, req: IncomingMessage): boolean {
   return user === id && given.length === want.length && timingSafeEqual(given, want);
 }
 
+function keyMatches(key: string): boolean {
+  const given = Buffer.from(key);
+  const want = Buffer.from(setup.ocppPassword());
+  return given.length === want.length && timingSafeEqual(given, want);
+}
+
 export function createOcppServer() {
   const wss = new WebSocketServer({
     noServer: true,
@@ -214,17 +220,21 @@ export function createOcppServer() {
       return false;
     }
     if (!pathname.startsWith(OCPP_PATH)) return false;
+    // Chargers that cannot send a password (EVBox Elvi) get it in the address instead: /ocpp/<password>/<id>.
+    const parts = pathname.slice(OCPP_PATH.length).replace(/\/+$/, "").split("/");
     let id: string;
+    let key: string | undefined;
     try {
-      id = decodeURIComponent(pathname.slice(OCPP_PATH.length)).replace(/\/+$/, "");
+      id = decodeURIComponent(parts.at(-1) ?? "");
+      if (parts.length === 2) key = decodeURIComponent(parts[0]);
     } catch {
       id = "";
     }
-    if (!id || id.includes("/")) {
+    if (!id || parts.length > 2) {
       socket.end("HTTP/1.1 404 Not Found\r\n\r\n");
       return true;
     }
-    if (!authorized(id, req)) {
+    if (!(key === undefined ? authorized(id, req) : keyMatches(key))) {
       socket.end('HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm="ocpp"\r\n\r\n');
       return true;
     }

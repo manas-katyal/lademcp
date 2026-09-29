@@ -1,6 +1,6 @@
 // First-run setup on a public deployment: nothing is reachable until the
-// owner has claimed the server with the code from the log, chosen a price
-// area, connected a charger and added the server to their assistant.
+// owner has claimed the server by choosing a password, chosen a price area,
+// connected a charger and added the server to their assistant.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -45,14 +45,24 @@ test("before setup, the pages lead to /setup and the owner-only routes are close
   assert.equal((await post("/setup/area", { area: "DK2" })).status, 403);
 });
 
-test("a wrong code does not claim the server; the one from the log does", async () => {
-  const wrong = await post("/setup/claim", { code: "NOPE" });
-  assert.equal(wrong.status, 400);
-  assert.equal(wrong.headers.get("set-cookie"), null);
-  const right = await post("/setup/claim", { code: setup.claimCode()!.toLowerCase() });
-  assert.equal(right.status, 200);
-  cookie = right.headers.get("set-cookie")!.split(";")[0];
+test("the first visitor claims the server by choosing a password", async () => {
+  const short = await post("/setup/claim", { password: "kort" });
+  assert.equal(short.status, 400);
+  assert.equal(short.headers.get("set-cookie"), null);
+  const ok = await post("/setup/claim", { password: "hemmelig-lader" });
+  assert.equal(ok.status, 200);
+  cookie = ok.headers.get("set-cookie")!.split(";")[0];
   assert.match(await (await get("/setup")).text(), /Hvor bor du\?/);
+});
+
+test("after that, nobody else can claim it, and the password logs in elsewhere", async () => {
+  const other = { "content-type": "application/json" };
+  assert.equal((await fetch(url("/setup/claim"), { method: "POST", headers: other, body: JSON.stringify({ password: "min-egen-kode" }) })).status, 409);
+  assert.match(await (await fetch(url("/setup"))).text(), /Log ind/);
+  assert.equal((await fetch(url("/setup/login"), { method: "POST", headers: other, body: JSON.stringify({ password: "forkert-kode" }) })).status, 401);
+  const login = await fetch(url("/setup/login"), { method: "POST", headers: other, body: JSON.stringify({ password: "hemmelig-lader" }) });
+  assert.equal(login.status, 200);
+  assert.equal(login.headers.get("set-cookie")!.split(";")[0], cookie);
 });
 
 test("after the area, setup sends the owner to /connect, which shows the charger password", async () => {
@@ -75,6 +85,19 @@ test("a charger with the generated password moves setup on to Claude", async () 
   assert.ok(page.includes(`https://lade.example.dk/mcp/${setup.mcpToken()}`));
 });
 
+test("a charger with no password field can carry the password in the address", async () => {
+  const open = (path: string) =>
+    new Promise<number>((resolve) => {
+      const ws = new WebSocket(`ws://localhost:${port}${path}`, "ocpp1.6");
+      ws.once("open", () => (ws.close(), resolve(101)));
+      ws.once("unexpected-response", (_req, res) => resolve(res.statusCode!));
+    });
+  assert.equal(await open(`/ocpp/${setup.ocppPassword()}/EVB-1`), 101);
+  assert.equal(await open("/ocpp/wrong-key/EVB-1"), 401);
+  assert.equal(await open("/ocpp/EVB-1"), 401, "no password at all");
+  assert.equal(await open(`/ocpp/${setup.ocppPassword()}/a/EVB-1`), 404);
+});
+
 test("/mcp/<token> works like the bearer header, and the first call is noticed", async () => {
   const call = (path: string) =>
     fetch(url(path), {
@@ -93,7 +116,7 @@ test("finishing opens the front page, and /setup then shows what was set up", as
   assert.equal((await get("/")).status, 200);
   const page = await (await get("/setup")).text();
   assert.match(page, /LadeMCP er sat op/);
-  assert.ok(page.includes("SETUP-1"));
+  assert.ok(page.includes("SETUP-1") && page.includes("EVB-1"));
 });
 
 test("another browser still cannot see the secrets or add chargers", async () => {
@@ -101,4 +124,21 @@ test("another browser still cannot see the secrets or add chargers", async () =>
   const html = await stranger.text();
   assert.ok(!html.includes(setup.ocppPassword()) && !html.includes(setup.mcpToken()));
   assert.equal((await fetch(url("/connect"), { redirect: "manual" })).headers.get("location"), "/setup");
+});
+
+test("a browser that claimed the server before passwords is asked to choose one", async () => {
+  const { createHmac } = await import("node:crypto");
+  const { readFileSync, writeFileSync } = await import("node:fs");
+  const f = join(process.env.DATA_DIR!, "setup.json");
+  const saved = JSON.parse(readFileSync(f, "utf8"));
+  delete saved.ownerHash;
+  writeFileSync(f, JSON.stringify(saved));
+  setup.reload();
+  const legacy = `lade_owner=${createHmac("sha256", saved.ownerKey).update("owner-v1").digest("base64url")}`;
+  const page = await (await fetch(url("/setup"), { headers: { cookie: legacy } })).text();
+  assert.match(page, /Vælg en adgangskode/);
+  const set = await fetch(url("/setup/password"), { method: "POST", headers: { cookie: legacy, "content-type": "application/json" }, body: JSON.stringify({ password: "ny-hemmelig-kode" }) });
+  assert.equal(set.status, 200);
+  const fresh = set.headers.get("set-cookie")!.split(";")[0];
+  assert.match(await (await fetch(url("/setup"), { headers: { cookie: fresh } })).text(), /LadeMCP er sat op/);
 });
