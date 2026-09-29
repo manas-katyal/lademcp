@@ -6,10 +6,11 @@ import { esc, shell, type Lang } from "./pages.ts";
 import { rail, SETUP_CSS } from "./setup-page.ts";
 
 /** keyInUrl: the charger has no password field, so the password goes in the address. */
-type Brand = { name: string; where?: string; serialHint?: string; steps?: string[]; note?: string; blocked?: string; keyInUrl?: boolean };
+type Brand = { name: string; where?: string; serialHint?: string; steps?: string[]; note?: string; blocked?: string; keyInUrl?: boolean; monta?: boolean };
 
 const BRANDS: Record<Lang, Record<string, Brand>> = {
   da: {
+    monta: { name: "Min lader ligger i Monta", monta: true },
     zaptec: {
       name: "Zaptec Go / Pro",
       where: "Zaptec Portal",
@@ -81,6 +82,7 @@ const BRANDS: Record<Lang, Record<string, Brand>> = {
     livo: { name: "EVBox Livo", blocked: "EVBox har lukket for, at Livo kan forbindes til andre platforme end dem, EVBox selv har aftaler med. Den kan derfor ikke tilsluttes LadeMCP." },
   },
   en: {
+    monta: { name: "My charger is in Monta", monta: true },
     zaptec: {
       name: "Zaptec Go / Pro",
       where: "Zaptec Portal",
@@ -185,6 +187,19 @@ const T = {
     doneNote: "Indstillingerne på forsiden gemmes ikke på ladestanderen endnu.",
     seePlan: "Se planen",
     continueSetup: "Fortsæt",
+    montaHead: "Forbind gennem Monta",
+    montaBody: "Laderen bliver i Monta, og Monta-appen virker som før. LadeMCP skal bare have en API-nøgle fra din Monta-konto.",
+    montaSteps: ["Åbn Monta-portalen, og log ind med din Monta-konto.", "Klik på dit navn nederst til venstre, og vælg Applications.", "Klik på + Add Application, kald den LadeMCP, og gem.", "Kopiér Client ID og Client Secret herind. Secret vises kun én gang."],
+    montaOpen: "Åbn Monta-portalen",
+    montaGo: "Forbind",
+    montaBad: "Monta kender ikke de nøgler. Tjek, at hele Client ID og Client Secret er kopieret.",
+    montaDown: "Monta svarer ikke lige nu. Prøv igen om lidt.",
+    montaNone: "Der er ingen ladere på den Monta-konto.",
+    montaPick: "Hvilken lader er din?",
+    montaDone: (plug: string) => `LadeMCP kan se laderen i Monta. ${plug}`,
+    plugged: "Der er en bil sat i lige nu.",
+    unplugged: "Der er ingen bil sat i lige nu.",
+    montaNext: "Næste skridt er, at LadeMCP starter og stopper opladningen i de billige timer gennem Monta.",
   },
   en: {
     title: "Connect a charger",
@@ -220,6 +235,19 @@ const T = {
     doneNote: "The settings on the front page are not saved to the charger yet.",
     seePlan: "See the plan",
     continueSetup: "Continue",
+    montaHead: "Connect through Monta",
+    montaBody: "The charger stays in Monta, and the Monta app works as before. LadeMCP only needs an API key from your Monta account.",
+    montaSteps: ["Open the Monta portal and log in with your Monta account.", "Click your name at the bottom left and choose Applications.", "Click + Add Application, name it LadeMCP, and save.", "Copy the Client ID and Client Secret in here. The secret is only shown once."],
+    montaOpen: "Open the Monta portal",
+    montaGo: "Connect",
+    montaBad: "Monta does not know those keys. Check that the whole Client ID and Client Secret were copied.",
+    montaDown: "Monta is not answering right now. Try again in a moment.",
+    montaNone: "There are no chargers on that Monta account.",
+    montaPick: "Which charger is yours?",
+    montaDone: (plug: string) => `LadeMCP can see the charger in Monta. ${plug}`,
+    plugged: "A car is plugged in right now.",
+    unplugged: "No car is plugged in right now.",
+    montaNext: "Next, LadeMCP starts and stops charging in the cheap hours through Monta.",
   },
 };
 
@@ -269,6 +297,27 @@ export function connectPage(lang: Lang, opts: { ocppBase: string; reachable: boo
     <h1 id="blockedHead"></h1>
     <p class="muted" id="blockedBody"></p>
     <button class="ghost full" data-go="brand">${t.back}</button>
+  </div>
+
+  <form class="card step" data-step="monta" hidden novalidate>
+    <div class="pill">Monta</div>
+    <h1>${t.montaHead}</h1>
+    <p class="muted">${t.montaBody}</p>
+    <a class="btn full" href="https://portal2.monta.app/" target="_blank" rel="noopener" style="margin-top:6px">${t.montaOpen}</a>
+    <ol class="how">${t.montaSteps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    <label class="field" for="mId">Client ID</label>
+    <input class="text" id="mId" autocomplete="off" spellcheck="false" required>
+    <label class="field" for="mSecret">Client Secret</label>
+    <input class="text" id="mSecret" type="password" autocomplete="off" spellcheck="false" required>
+    <p class="err" id="mErr" aria-live="polite"></p>
+    <button class="full" type="submit" id="mGo">${t.montaGo}</button>
+    <button class="link" type="button" data-go="brand">${t.back}</button>
+  </form>
+
+  <div class="card step" data-step="montaPick" hidden>
+    <div class="pill">Monta</div>
+    <h1>${t.montaPick}</h1>
+    <ul class="rows" id="mList"></ul>
   </div>
 
   <form class="card step" data-step="serial" hidden novalidate>
@@ -342,6 +391,7 @@ for (const b of all("button.pick")) b.addEventListener("click", () => {
   state.brand = b.dataset.brand;
   const info = BRANDS[state.brand];
   for (const el of all(".bname")) el.textContent = info.name;
+  if (info.monta) return show("monta");
   if (info.blocked) {
     $("blockedHead").textContent = fill(T.cannotHead, info.name);
     $("blockedBody").textContent = info.blocked;
@@ -374,6 +424,38 @@ document.querySelector("[data-step=serial]").addEventListener("submit", (e) => {
   $("fullUrl").textContent = BASE + encodeURIComponent(id);
   remember({});
   show("setup");
+});
+
+function montaDone(cp) {
+  remember({ id: "monta-" + cp.id, name: cp.name, monta: true });
+  $("doneHead").textContent = fill(T.doneHead, cp.name);
+  $("doneBody").textContent = fill(T.montaDone, cp.cablePluggedIn ? T.plugged : T.unplugged) + " " + T.montaNext;
+  show("done");
+}
+
+document.querySelector("[data-step=monta]").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("mErr").textContent = "";
+  $("mGo").disabled = true;
+  try {
+    const res = await fetch("/setup/monta", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: $("mId").value, clientSecret: $("mSecret").value }) });
+    const d = await res.json();
+    if (!res.ok) { $("mErr").textContent = d.error === "bad_keys" ? T.montaBad : T.montaDown; return; }
+    if (!d.chargePoints.length) { $("mErr").textContent = T.montaNone; return; }
+    if (d.chargePoints.length === 1) return montaDone(d.chargePoints[0]);
+    $("mList").replaceChildren(...d.chargePoints.map((cp) => {
+      const li = document.createElement("li");
+      const b = Object.assign(document.createElement("button"), { className: "pick", type: "button" });
+      b.append(Object.assign(document.createElement("span"), { textContent: cp.name }), Object.assign(document.createElement("span"), { className: "chev" }));
+      b.addEventListener("click", async () => {
+        await fetch("/setup/monta/pick", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: cp.id, name: cp.name }) });
+        montaDone(cp);
+      });
+      li.append(b);
+      return li;
+    }));
+    show("montaPick");
+  } catch { $("mErr").textContent = T.montaDown; } finally { $("mGo").disabled = false; }
 });
 
 async function copy(btn, text) {
