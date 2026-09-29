@@ -58,3 +58,20 @@ test("the front page's charger status asks Monta, for the owner only", async () 
   assert.deepEqual(await status(true), { connected: true, plugged_in: true, vendor: "Monta", model: "Carport" });
   assert.deepEqual(await status(false), { connected: false });
 });
+
+test("Monta ids too large for a JavaScript number keep every digit", async () => {
+  const { createServer } = await import("node:http");
+  const srv = createServer((_q, r) => r.end('{"data":[{"id":892753960160181234,"state":"scheduled","chargePointId":42}]}'));
+  await new Promise<void>((ok) => srv.listen(0, ok));
+  const saved = process.env.MONTA_API_BASE;
+  try {
+    // monta.ts reads the base at import, so check the parser directly through a fresh import with the fake base.
+    process.env.MONTA_API_BASE = `http://localhost:${(srv.address() as { port: number }).port}`;
+    const m = await import(`../src/monta.ts?big=${Date.now()}`);
+    const c = await m.montaActiveCharge("tok", 42);
+    assert.equal(c.id, "892753960160181234");
+  } finally {
+    process.env.MONTA_API_BASE = saved;
+    srv.close();
+  }
+});
