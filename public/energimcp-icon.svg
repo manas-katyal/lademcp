@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EnergiMCP">
+  <defs>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#ffd23f"/>
+      <stop offset="0.34" stop-color="#ffb01f"/>
+      <stop offset="0.68" stop-color="#ff8c12"/>
+      <stop offset="1"    stop-color="#f96a0d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#chip)"/>
+  <path d="M300 54 L146 292 h94 l-28 166 L366 214 h-94 z"
+        fill="#fff" stroke="#fff" stroke-width="16" stroke-linejoin="round"/>
+</svg>

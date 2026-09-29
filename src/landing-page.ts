@@ -10,13 +10,14 @@ const WORKS = ["Monta", "Zaptec", "Easee", "Wallbox", "myenergi zappi", "EVBox E
 
 const T = {
   da: {
-    title: "Lad bilen, når strømmen er billigst",
+    title: "EnergiMCP 2.0 · intelligent opladning",
+    kicker: "nu med intelligent opladning af din elbil",
     login: "Log ind",
     h1: "Din bil lader, når strømmen er billigst.",
-    lede: "LadeMCP lægger nattens plan ud fra Energinets priser og CO₂-prognose og styrer din ladestander. Du fortæller bare din AI, hvornår du skal bruge bilen.",
+    lede: "EnergiMCP 2.0 lægger nattens plan ud fra Energinets priser og CO₂-prognose og styrer din ladestander. Du fortæller bare din AI, hvornår du skal bruge bilen.",
     deploy: "Deploy din egen",
     code: "Koden på GitHub",
-    videoLabel: "Video: LadeMCP lægger nattens plan og styrer laderen",
+    videoLabel: "Video: EnergiMCP 2.0 lægger nattens plan og styrer laderen",
     setup: "Opsætning",
     time: "ca. 5 minutter",
     steps: [
@@ -37,16 +38,17 @@ const T = {
       ["Eller grønnest", "Træk mod grønnest, og se præcis hvad det koster ekstra og hvor meget CO₂ det sparer."],
       ["Den styrer laderen", "Den starter og stopper opladningen selv. Du kan altid trykke stop eller lade med det samme."],
     ],
-    footer: "LadeMCP · bygget på EnergiMCP · priser og CO₂ fra Energinet, Energi Data Service",
+    footer: "EnergiMCP 2.0 · opladningen kører på LadeMCP, open source · priser og CO₂ fra Energinet, Energi Data Service",
   },
   en: {
-    title: "Charge the car when power is cheapest",
+    title: "EnergiMCP 2.0 · intelligent charging",
+    kicker: "now with intelligent charging for your car charger",
     login: "Log in",
     h1: "Your car charges when power is cheapest.",
-    lede: "LadeMCP plans the night on Energinet's prices and CO₂ forecast, and runs your charger. You just tell your AI when you need the car.",
+    lede: "EnergiMCP 2.0 plans the night on Energinet's prices and CO₂ forecast, and runs your charger. You just tell your AI when you need the car.",
     deploy: "Deploy your own",
     code: "Code on GitHub",
-    videoLabel: "Video: LadeMCP plans the night and runs the charger",
+    videoLabel: "Video: EnergiMCP 2.0 plans the night and runs the charger",
     setup: "Setup",
     time: "about 5 minutes",
     steps: [
@@ -67,7 +69,7 @@ const T = {
       ["Or greenest", "Drag toward greenest and see exactly what it costs extra and how much CO₂ it saves."],
       ["It runs the charger", "It starts and stops charging by itself. You can always press stop, or charge right away."],
     ],
-    footer: "LadeMCP · built on EnergiMCP · prices and CO₂ from Energinet, Energi Data Service",
+    footer: "EnergiMCP 2.0 · charging runs on LadeMCP, open source · prices and CO₂ from Energinet, Energi Data Service",
   },
 };
 
@@ -85,7 +87,7 @@ export function landingPage(lang: Lang): string {
   const chips = `<li class="first">${esc(t.anyOcpp)}</li>` + WORKS.map((w) => `<li>${esc(w)}</li>`).join("");
   const how = t.howItems.map(([b, p]) => `<div class="how"><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("");
   return `<!doctype html><html lang="${lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><title>LadeMCP · ${esc(t.title)}</title><link rel="icon" href="/icon.svg?v=1" type="image/svg+xml">
+<meta name="color-scheme" content="light dark"><title>${esc(t.title)}</title><link rel="icon" href="/energimcp-icon.svg" type="image/svg+xml">
 <meta name="description" content="${esc(t.lede)}">
 <style>
   :root{--bg:#faf9f7;--card:#fff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--faint:#8e8e93;--line:#e8e8ea;--line-strong:#d4d4d8;--alt:#f4f4f5;--ok:#0f7b4f;--ease:cubic-bezier(0.22,1,0.36,1)}
@@ -97,6 +99,9 @@ export function landingPage(lang: Lang): string {
   header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:22px 0}
   .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:18px;text-decoration:none}
   .brand img{width:28px;height:28px}
+  .ver{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,#ffd23f,#ff8c12 70%,#f96a0d);color:#fff}
+  .kicker{display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;padding:5px 13px;border-radius:999px;background:var(--card);box-shadow:0 0 0 1px var(--line);font-size:14px;color:var(--muted)}
+  .kicker b{font-weight:500;color:var(--ink)}
   .right{display:flex;align-items:center;gap:14px}
   .langs{display:inline-flex;gap:2px;padding:2px;border-radius:999px;background:var(--line)}
   .langs a{padding:3px 9px;border-radius:999px;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);text-decoration:none}
@@ -150,10 +155,11 @@ export function landingPage(lang: Lang): string {
 </style>
 <body><div class="wrap">
   <header>
-    <a class="brand" href="/"><img src="/icon.svg?v=1" alt="">LadeMCP</a>
+    <a class="brand" href="/"><img src="/energimcp-icon.svg" alt="">EnergiMCP <span class="ver">2.0</span></a>
     <div class="right"><a class="login" href="/setup">${esc(t.login)}</a><nav class="langs" aria-label="Language">${toggle}</nav></div>
   </header>
   <section class="hero">
+    <div class="kicker"><b>EnergiMCP 2.0</b>${esc(t.kicker)}</div>
     <h1>${esc(t.h1)}</h1>
     <p class="lede">${esc(t.lede)}</p>
     <div class="ctas"><a class="btn primary" href="${DEPLOY}">${esc(t.deploy)}</a><a class="btn line" href="${REPO}">${esc(t.code)}</a></div>
