@@ -54,6 +54,7 @@ const T = {
     connect: "Tilslut",
     online: "Forbundet",
     offline: "Ikke forbundet",
+    pluggedIn: "bil sat i",
   },
   en: {
     title: "Charging tonight",
@@ -93,6 +94,7 @@ const T = {
     connect: "Connect",
     online: "Connected",
     offline: "Not connected",
+    pluggedIn: "car plugged in",
   },
 };
 
@@ -351,7 +353,7 @@ try {
   const c = JSON.parse(localStorage.getItem("lade.charger") || "null");
   if (c && c.id) {
     fetch("/api/charger/" + encodeURIComponent(c.id)).then((r) => r.json()).then((d) => {
-      const dot = Object.assign(document.createElement("span"), { className: "dot" + (d.connected ? " ok" : ""), textContent: d.connected ? T.online : T.offline, title: c.name || c.id });
+      const dot = Object.assign(document.createElement("span"), { className: "dot" + (d.connected ? " ok" : ""), textContent: d.connected ? T.online + (d.plugged_in ? " · " + T.pluggedIn : "") : T.offline, title: c.name || c.id });
       $("chargerState").replaceChildren(dot);
     }).catch(() => {});
   }
