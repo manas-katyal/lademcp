@@ -60,11 +60,18 @@ export const config = {
   userAgent: env.USER_AGENT ?? "LadeMCP (+https://github.com/manas-katyal/lademcp)",
 };
 
+/**
+ * On Railway without a volume, the data directory is wiped on every deploy: the
+ * server would forget its owner, and the next visitor could claim it.
+ */
+export const noVolume = () => Boolean(env.RAILWAY_ENVIRONMENT && !env.RAILWAY_VOLUME_MOUNT_PATH);
+
 export const isLocalUrl = (url: string) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(url);
 
 /** What is stopping the server from working safely. */
 export function setupProblems(): string[] {
   const problems: string[] = [];
+  if (noVolume()) problems.push("No volume on this Railway service: add one mounted at /data, or the setup (owner, passwords, chargers) is lost on every deploy. Setup is closed until then");
   if (config.tariffRaw && !config.tariffDkkPerKwh) {
     problems.push("NETTARIF_DKK_PER_KWH must be 24 comma-separated numbers (DKK/kWh for 00:00 to 23:00); it is ignored");
   }

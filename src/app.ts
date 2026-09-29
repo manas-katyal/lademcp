@@ -8,7 +8,7 @@ import express from "express";
 import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { config, isLocalUrl, setupProblems } from "./config.ts";
+import { config, isLocalUrl, noVolume, setupProblems } from "./config.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isConnected, OCPP_PATH } from "./ocpp.ts";
 import { connectPage } from "./connect-page.ts";
@@ -92,7 +92,7 @@ export function createApp() {
     const lang = langOf(req);
     res.set("Cache-Control", "no-store");
     const s = setup.status();
-    if (!setup.isOwner(req)) return res.type("html").send(ownerPage(lang, s.claimed ? "login" : "claim"));
+    if (!setup.isOwner(req)) return res.type("html").send(ownerPage(lang, s.claimed ? "login" : "claim", { noVolume: !s.claimed && noVolume() }));
     if (!s.hasPassword) return res.type("html").send(ownerPage(lang, "password"));
     if (!s.priceArea) return res.type("html").send(areaPage(lang));
     const chargers = store.list();
@@ -117,7 +117,7 @@ export function createApp() {
   const password = (req: Request) => String(req.body?.password ?? "");
   app.post("/setup/claim", (req, res) => {
     const result = setup.claim(password(req));
-    if (result !== "ok") return res.status(result === "taken" ? 409 : 400).json({ error: result });
+    if (result !== "ok") return res.status(result === "taken" ? 409 : result === "no_volume" ? 503 : 400).json({ error: result });
     res.set("Set-Cookie", setup.ownerCookie()).json({ ok: true });
   });
   app.post("/setup/login", (req, res) => {
