@@ -116,3 +116,18 @@ test("cable out: no plan and no calls", async () => {
   assert.deepEqual(monta.calls, []);
   assert.equal(store.state("monta-42").lastPlan, undefined);
 });
+
+test("stop by hand stops any running charge and keeps it stopped until the cable comes out", async () => {
+  const { pauseMonta, resumeMonta } = await import("../src/monta-control.ts");
+  monta.pluggedIn = true;
+  monta.calls = [];
+  await montaCheck(new Date(base + 9 * 3600_000));
+  monta.calls = [];
+  for (const c of monta.charges) c.state = "stopped";
+  monta.charges.unshift({ id: 77, state: "charging", chargePointId: 42, startedAt: new Date().toISOString(), consumedKwh: 0 });
+  pauseMonta();
+  await montaCheck(new Date(base + 9 * 3600_000 + 60_000));
+  assert.deepEqual(monta.calls, ["stop 77"]);
+  assert.equal(montaStatus("monta-42")?.paused, true);
+  resumeMonta();
+});
