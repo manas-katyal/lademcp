@@ -37,6 +37,12 @@ Claude Code, local: `claude mcp add lade -s user -- node ~/lademcp/src/stdio.ts`
 
 ## Deploy on Railway
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/3u6Sxq)
+
+The template runs the image from this repo with a volume at `/data` and a public domain. Open `https://<your domain>/setup` right after it is up and choose a password.
+
+Or by hand:
+
 1. New project › Deploy from GitHub repo › `manas-katyal/lademcp` (or your fork).
 2. Right-click the service › Attach volume, mounted at `/data`. Without it the server forgets its owner on every deploy, so setup stays closed until there is one.
 3. Settings › Networking › Generate domain.
