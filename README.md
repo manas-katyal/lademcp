@@ -35,6 +35,13 @@ npm run simulate -- ws://localhost:8080/ocpp SIM-1   # a pretend charger
 
 Claude Code, local: `claude mcp add lade -s user -- node ~/lademcp/src/stdio.ts`. The stdio server also opens the OCPP listener on port 9180.
 
+## Deploy on Railway
+
+1. New project › Deploy from GitHub repo › `manas-katyal/lademcp` (or your fork).
+2. Right-click the service › Attach volume, mounted at `/data`. Without it the server forgets its owner on every deploy, so setup stays closed until there is one.
+3. Settings › Networking › Generate domain.
+4. Open `https://<your domain>/setup` right away and choose a password.
+
 ## Setup
 
 Deploy it and open `/setup`. The first person there becomes the owner by choosing a password (like Home Assistant), so open it right after deploying. It walks you through three steps, and the rest of the site stays closed until they are done:
