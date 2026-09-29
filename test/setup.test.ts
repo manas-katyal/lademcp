@@ -119,6 +119,12 @@ test("finishing opens the front page, and /setup then shows what was set up", as
   assert.ok(page.includes("SETUP-1") && page.includes("EVB-1"));
 });
 
+test("a stranger on a claimed server gets the page about LadeMCP, not the plan", async () => {
+  const page = await (await fetch(url("/"))).text();
+  assert.match(page, /Din bil lader, når strømmen er billigst/);
+  assert.ok(page.includes("railway.com/deploy") && !page.includes(setup.mcpToken()));
+});
+
 test("another browser still cannot see the secrets or add chargers", async () => {
   const stranger = await fetch(url("/setup"));
   const html = await stranger.text();

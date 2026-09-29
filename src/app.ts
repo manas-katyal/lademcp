@@ -17,6 +17,7 @@ import { chargerHandler, planHandler } from "./api.ts";
 import { store } from "./store.ts";
 import { setup } from "./setup.ts";
 import { areaPage, assistantPage, donePage, ownerPage } from "./setup-page.ts";
+import { landingPage } from "./landing-page.ts";
 import { MontaError, montaChargePoints, montaToken } from "./monta.ts";
 import { isMonta, MONTA_PREFIX, montaCheck, montaStatus, pauseMonta, replanMonta, resumeMonta } from "./monta-control.ts";
 import type { Request, Response, NextFunction } from "express";
@@ -66,8 +67,13 @@ export function createApp() {
   });
 
   // The page for people; Claude uses /mcp. /api/plan only reads prices and CO2.
+  // The owner sees tonight's plan. Anyone else sees what LadeMCP is and how to run their own, except on a
+  // server nobody has claimed yet, where the first visitor is sent to /setup to claim it.
   app.get("/", (req, res) => {
-    if (!setup.status().done) return res.redirect(303, "/setup");
+    const s = setup.status();
+    if (!s.claimed) return res.redirect(303, "/setup");
+    if (!setup.isOwner(req)) return res.type("html").send(landingPage(langOf(req)));
+    if (!s.done) return res.redirect(303, "/setup");
     res.type("html").send(homePage(langOf(req)));
   });
   // DK | EN toggle. Only same-site paths are accepted as the way back.
