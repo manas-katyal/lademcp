@@ -52,7 +52,8 @@ export function createApp() {
   app.get("/lang/:lang", (req, res) => {
     const lang = req.params.lang === "en" ? "en" : "da";
     const back = String(req.query.back ?? "/");
-    const safe = back.startsWith("/") && !back.startsWith("//") ? back : "/";
+    // Browsers read "/\host" as "//host", so a backslash in second place is off-site too.
+    const safe = back.startsWith("/") && !/^\/[\/\\]/.test(back) ? back : "/";
     const secure = config.baseUrl.startsWith("https:") ? "; Secure" : "";
     res.set("Set-Cookie", `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`).redirect(303, safe);
   });
