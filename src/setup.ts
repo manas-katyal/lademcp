@@ -27,6 +27,8 @@ interface SetupFile {
   /** When an assistant first called /mcp with the token, or "skipped". */
   assistant?: string;
   doneAt?: string;
+  /** A charger that stays in Monta: the application's keys and the chosen charge point. */
+  monta?: { clientId: string; clientSecret: string; chargePointId?: number; name?: string };
 }
 
 export const OWNER_COOKIE = "lade_owner";
@@ -154,6 +156,15 @@ export const setup = {
   skipAssistant(): void {
     if (!load().assistant) update({ assistant: "skipped" });
   },
+
+  setMonta(monta: SetupFile["monta"]): void {
+    update({ monta });
+  },
+
+  monta: () => load().monta,
+
+  /** A charger is in place: one has dialled in over OCPP, or one is chosen in Monta. */
+  hasCharger: (chargerCount: number) => chargerCount > 0 || Boolean(load().monta?.chargePointId),
 
   finish(): void {
     if (!load().doneAt) update({ doneAt: new Date().toISOString() });

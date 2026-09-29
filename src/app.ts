@@ -17,6 +17,7 @@ import { chargerHandler, planHandler } from "./api.ts";
 import { store } from "./store.ts";
 import { setup } from "./setup.ts";
 import { areaPage, assistantPage, donePage, ownerPage } from "./setup-page.ts";
+import { MontaError, montaChargePoints, montaToken } from "./monta.ts";
 import type { Request, Response, NextFunction } from "express";
 
 function tokenMatches(token: string | undefined): boolean {
@@ -87,13 +88,17 @@ export function createApp() {
     if (!s.hasPassword) return res.type("html").send(ownerPage(lang, "password"));
     if (!s.priceArea) return res.type("html").send(areaPage(lang));
     const chargers = store.list();
-    if (!chargers.length) return res.redirect(303, "/connect");
+    const monta = setup.monta();
+    if (!setup.hasCharger(chargers.length)) return res.redirect(303, "/connect");
     const assistant = Boolean(s.assistant && s.assistant !== "skipped");
     if (!s.done) return res.type("html").send(assistantPage(lang, { claudeUrl: claudeUrl(), seen: assistant }));
     res.type("html").send(
       donePage(lang, {
         priceArea: s.priceArea,
-        chargers: chargers.map((c) => ({ id: c.id, connected: isConnected(c.id) })),
+        chargers: [
+          ...chargers.map((c) => ({ id: c.id, connected: isConnected(c.id) })),
+          ...(monta?.chargePointId ? [{ id: `${monta.name ?? monta.chargePointId} (Monta)`, connected: true }] : []),
+        ],
         assistant,
         ocppBase: ocppBase(),
         ocppPassword: setup.ocppPassword(),
@@ -126,6 +131,28 @@ export function createApp() {
     for (const c of store.list()) store.update(c.id, { priceArea: area });
     res.json({ ok: true });
   });
+  // A charger that stays in Monta: check the keys, list the account's charge points, keep the keys.
+  app.post("/setup/monta", ownerOnly, async (req, res) => {
+    const clientId = String(req.body?.clientId ?? "").trim();
+    const clientSecret = String(req.body?.clientSecret ?? "").trim();
+    if (!clientId || !clientSecret) return res.status(400).json({ error: "bad_keys" });
+    try {
+      const points = await montaChargePoints(await montaToken(clientId, clientSecret));
+      setup.setMonta({ clientId, clientSecret, ...(points.length === 1 ? { chargePointId: points[0].id, name: points[0].name } : {}) });
+      res.json({ chargePoints: points.map(({ id, name, state, cablePluggedIn }) => ({ id, name, state, cablePluggedIn })) });
+    } catch (err) {
+      const kind = err instanceof MontaError ? err.kind : "unreachable";
+      log(`monta: ${(err as Error).message}`);
+      res.status(kind === "bad_keys" ? 400 : 502).json({ error: kind });
+    }
+  });
+  app.post("/setup/monta/pick", ownerOnly, (req, res) => {
+    const monta = setup.monta();
+    const id = Number(req.body?.id);
+    if (!monta || !Number.isInteger(id)) return res.status(400).json({ error: "bad_request" });
+    setup.setMonta({ ...monta, chargePointId: id, name: String(req.body?.name ?? id).slice(0, 80) });
+    res.json({ ok: true });
+  });
   // For /connect's waiting step: a charger may announce itself under a slightly different id than the serial typed.
   app.get("/setup/chargers", ownerOnly, (_req, res) => {
     res.set("Cache-Control", "no-store").json(store.list().map((c) => ({ id: c.id, connected: isConnected(c.id) })));
@@ -135,7 +162,7 @@ export function createApp() {
     res.set("Cache-Control", "no-store").json({ assistant: Boolean(s.assistant && s.assistant !== "skipped") });
   });
   app.post("/setup/finish", ownerOnly, (req, res) => {
-    if (!setup.status().priceArea || !store.list().length) return res.status(409).json({ error: "not_ready" });
+    if (!setup.status().priceArea || !setup.hasCharger(store.list().length)) return res.status(409).json({ error: "not_ready" });
     if (req.body?.skip) setup.skipAssistant();
     setup.finish();
     res.json({ ok: true });
