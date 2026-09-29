@@ -6,6 +6,7 @@ import { createApp } from "./app.ts";
 import { config, setupProblems } from "./config.ts";
 import { createOcppServer } from "./ocpp.ts";
 import { startScheduler } from "./smart.ts";
+import { setup } from "./setup.ts";
 
 export function listen(port = config.port): Promise<{ server: Server; close: () => void }> {
   const ocpp = createOcppServer();
@@ -19,6 +20,9 @@ export function listen(port = config.port): Promise<{ server: Server; close: () 
     server.once("listening", () => {
       console.error(`[lade ${new Date().toISOString()}] listening on port ${port}, public URL ${config.baseUrl}`);
       for (const problem of setupProblems()) console.error(`[lade] ${problem}`);
+      // The owner claims the server with this; it is only ever printed here.
+      const code = setup.claimCode();
+      if (code && !config.localMode) console.error(`[lade] Setup: open ${config.baseUrl}/setup?code=${code} to set up this server (code ${code})`);
       resolve({
         server,
         close: () => {
