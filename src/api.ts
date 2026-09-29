@@ -11,6 +11,7 @@ import { makePlan, nextReadyBy } from "./smart.ts";
 import { isConnected } from "./ocpp.ts";
 import { defaults, store } from "./store.ts";
 import { setup } from "./setup.ts";
+import { montaChargePointsCached } from "./monta.ts";
 
 const query = z.object({
   ready_by: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("07:00"),
@@ -63,8 +64,25 @@ export async function planHandler(req: Request, res: Response): Promise<void> {
  * poll. Only answers for an id the caller already knows (the serial number),
  * and only with what the charger announced about itself and its plan settings.
  */
-export function chargerHandler(req: Request, res: Response): void {
+export async function chargerHandler(req: Request, res: Response): Promise<void> {
   const id = String(req.params.id ?? "");
+  // A charger in Monta ("monta-<charge point id>"): ask Monta, and only for the owner, since it spends their API calls.
+  const montaId = /^monta-(\d+)$/.exec(id)?.[1];
+  if (montaId) {
+    const keys = setup.monta();
+    res.set("Cache-Control", "no-store");
+    if (!keys || !setup.isOwner(req)) {
+      res.json({ connected: false });
+      return;
+    }
+    try {
+      const cp = (await montaChargePointsCached(keys.clientId, keys.clientSecret)).find((c) => String(c.id) === montaId);
+      res.json(cp ? { connected: cp.state !== "disconnected" && cp.state !== "error", plugged_in: cp.cablePluggedIn, vendor: "Monta", model: cp.name } : { connected: false });
+    } catch {
+      res.json({ connected: false });
+    }
+    return;
+  }
   if (!/^[A-Za-z0-9._-]{3,64}$/.test(id)) {
     res.status(400).json({ error: "bad_request" });
     return;

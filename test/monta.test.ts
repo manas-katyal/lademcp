@@ -52,3 +52,9 @@ test("Monta keys find the charge point and count as the charger step", async () 
   assert.match(page, /Tilføj LadeMCP til Claude/);
   assert.ok(!page.includes("secret-1"));
 });
+
+test("the front page's charger status asks Monta, for the owner only", async () => {
+  const status = async (withCookie: boolean) => (await fetch(`http://localhost:${port}/api/charger/monta-42`, { headers: withCookie ? { cookie } : {} })).json();
+  assert.deepEqual(await status(true), { connected: true, plugged_in: true, vendor: "Monta", model: "Carport" });
+  assert.deepEqual(await status(false), { connected: false });
+});

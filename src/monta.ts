@@ -50,6 +50,17 @@ export async function montaToken(clientId: string, clientSecret: string): Promis
   return d.accessToken;
 }
 
+let cached: { at: number; key: string; points: MontaChargePoint[] } | undefined;
+
+/** The account's charge points, fetched at most once a minute per key, for pages that poll. */
+export async function montaChargePointsCached(clientId: string, clientSecret: string): Promise<MontaChargePoint[]> {
+  const key = `${clientId}:${clientSecret}`;
+  if (cached && cached.key === key && Date.now() - cached.at < 60_000) return cached.points;
+  const points = await montaChargePoints(await montaToken(clientId, clientSecret));
+  cached = { at: Date.now(), key, points };
+  return points;
+}
+
 export async function montaChargePoints(token: string): Promise<MontaChargePoint[]> {
   const d = (await call("/charge-points?page=0&perPage=100", { token })) as { data?: Record<string, unknown>[] };
   return (d.data ?? []).map((c) => ({
