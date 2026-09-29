@@ -71,3 +71,56 @@ export async function montaChargePoints(token: string): Promise<MontaChargePoint
     ...(typeof c.maxKw === "number" ? { maxKw: c.maxKw } : {}),
   }));
 }
+
+export async function montaChargePoint(token: string, id: number): Promise<MontaChargePoint> {
+  const c = (await call(`/charge-points/${id}`, { token })) as Record<string, unknown>;
+  return {
+    id: Number(c.id),
+    name: String(c.name ?? `Monta ${c.id}`),
+    state: String(c.state ?? "unknown"),
+    cablePluggedIn: Boolean(c.cablePluggedIn),
+    ...(typeof c.maxKw === "number" ? { maxKw: c.maxKw } : {}),
+  };
+}
+
+interface MontaCharge {
+  id: number;
+  state: string;
+  chargePointId?: number;
+  startedAt?: string;
+  createdAt?: string;
+  consumedKwh?: number;
+}
+
+async function recentCharges(token: string, chargePointId: number): Promise<MontaCharge[]> {
+  const d = (await call(`/charges?chargePointId=${chargePointId}&page=0&perPage=20`, { token })) as { data?: MontaCharge[] };
+  return (d.data ?? []).filter((c) => c.chargePointId === undefined || Number(c.chargePointId) === chargePointId);
+}
+
+/** Charge states where power flows, or may at any moment. */
+const RUNNING = new Set(["starting", "charging", "paused"]);
+/** A charge Monta is holding for later: its own schedule, or a reservation. */
+const PENDING = new Set(["scheduled", "reserved"]);
+
+/** The charge on this charge point that is running or waiting, if any. */
+export async function montaActiveCharge(token: string, chargePointId: number): Promise<(MontaCharge & { running: boolean }) | undefined> {
+  const c = (await recentCharges(token, chargePointId)).find((x) => RUNNING.has(x.state) || PENDING.has(x.state));
+  return c && { ...c, running: RUNNING.has(c.state) };
+}
+
+/** kWh delivered on this charge point since a moment, for how much a plan still has to find. */
+export async function montaChargesSince(token: string, chargePointId: number, since: Date): Promise<number> {
+  return (await recentCharges(token, chargePointId))
+    .filter((c) => new Date(c.startedAt ?? c.createdAt ?? 0).getTime() >= since.getTime() - 60_000)
+    .reduce((sum, c) => sum + (c.consumedKwh ?? 0), 0);
+}
+
+/** Starts a charge and returns its id. */
+export async function montaStartCharge(token: string, chargePointId: number): Promise<number | undefined> {
+  const d = (await call("/charges", { method: "POST", token, body: JSON.stringify({ chargePointId }) })) as { id?: number };
+  return typeof d.id === "number" ? d.id : undefined;
+}
+
+export async function montaStopCharge(token: string, chargeId: number): Promise<void> {
+  await call(`/charges/${chargeId}/stop`, { method: "POST", token });
+}

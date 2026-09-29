@@ -55,6 +55,10 @@ const T = {
     online: "Forbundet",
     offline: "Ikke forbundet",
     pluggedIn: "bil sat i",
+    chargingNow: "lader nu",
+    at: "Kl.",
+    montaFights: "Monta planlægger selv opladningen. Slå smart opladning fra i Monta-appen, så LadeMCP kan bestemme, hvornår bilen lader.",
+    savedToCharger: "Gemmes på din ladestander.",
   },
   en: {
     title: "Charging tonight",
@@ -95,6 +99,10 @@ const T = {
     online: "Connected",
     offline: "Not connected",
     pluggedIn: "car plugged in",
+    chargingNow: "charging now",
+    at: "At",
+    montaFights: "Monta is scheduling the charging itself. Turn off smart charging in the Monta app so LadeMCP can decide when the car charges.",
+    savedToCharger: "Saved to your charger.",
   },
 };
 
@@ -200,6 +208,7 @@ export function homePage(lang: Lang): string {
     <div class="fade">
       <h1 id="head">${t.title}</h1>
       <p class="muted" id="sub">&nbsp;</p>
+      <p class="small" id="when" style="font-variant-numeric:tabular-nums;margin:8px 0 0"></p>
       <div class="cost"><span class="t-digit-group" id="cost">&nbsp;</span></div>
       <p class="muted small" id="save">&nbsp;</p>
       <div class="bars" id="bars" aria-hidden="true"></div>
@@ -218,6 +227,8 @@ export function homePage(lang: Lang): string {
       <li><label for="power">${t.power}</label><select id="power">${powerOptions}</select></li>
       <li><label for="area">${t.area}</label><select id="area"><option value="DK1">${t.west}</option><option value="DK2">${t.east}</option></select></li>
     </ul>
+    <p class="muted small" id="savedNote" hidden style="margin:10px 0 0">${t.savedToCharger}</p>
+    <p class="small" id="fight" style="color:var(--err);margin:10px 0 0"></p>
     <div class="warn" id="warn"></div>
   </div>
 <script>
@@ -242,8 +253,15 @@ try {
   for (const el of [inputs.kwh, inputs.power, inputs.area]) if (!el.value) el.selectedIndex = Math.max(0, [...el.options].findIndex((o) => o.defaultSelected));
 } catch {}
 
+let mine = false;
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(Object.entries(inputs).map(([k, el]) => [k, el.value])))); } catch {}
+  if (!mine) return;
+  const [amps, phases] = inputs.power.value.split("x");
+  fetch("/api/my-charger", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+    ready_by: inputs.ready.value, energy_kwh: Number(inputs.kwh.value), green_weight: Number(inputs.green.value),
+    max_amps: Number(amps), phases: Number(phases), price_area: inputs.area.value,
+  }) }).catch(() => {});
 }
 
 function setDigits(group, str) {
@@ -300,6 +318,8 @@ function render(d, kwh) {
   else if (w.length === 1) $("head").textContent = T.charges + " " + hm.format(w[0][0]) + "–" + hm.format(w[0][1]);
   else $("head").textContent = T.charges + " " + T.from + " " + hm.format(w[0][0]) + " " + fill(T.periods, String(w.length));
   $("sub").textContent = fill(T.readyBy, num.format(d.plan.energyKwh), day.format(new Date(d.ready_by)));
+  // Every window spelled out, so it is plain when the car charges.
+  $("when").textContent = w.length ? T.at + " " + w.map(([a, b]) => hm.format(a) + "–" + hm.format(b)).join(" · ") : "";
   setDigits($("cost"), dkk.format(d.plan.costDkk));
   const saved = d.charge_now.costDkk - d.plan.costDkk;
   $("save").textContent = saved >= 0.01 ? fill(T.saves, dkk.format(saved)) : T.noSaving;
@@ -345,7 +365,25 @@ async function update() {
 }
 const soon = () => { clearTimeout(timer); timer = setTimeout(update, 150); };
 for (const el of Object.values(inputs)) el.addEventListener(el.type === "range" ? "input" : "change", soon);
-update();
+// The owner sees their own charger: its settings replace the ones kept in this browser, and changes are saved to it.
+fetch("/api/my-charger").then((r) => (r.ok ? r.json() : null)).then((c) => {
+  if (!c) return update();
+  mine = true;
+  const s = c.settings;
+  inputs.ready.value = s.ready_by; inputs.kwh.value = String(s.energy_kwh); inputs.green.value = String(s.green_weight);
+  inputs.power.value = s.max_amps + "x" + s.phases; inputs.area.value = s.price_area;
+  for (const el of [inputs.kwh, inputs.power]) if (!el.value) {
+    const o = Object.assign(document.createElement("option"), { value: el === inputs.kwh ? String(s.energy_kwh) : s.max_amps + "x" + s.phases, textContent: el === inputs.kwh ? s.energy_kwh + " kWh" : Math.round(s.max_amps * 230 * s.phases / 100) / 10 + " kW" });
+    el.append(o); el.value = o.value;
+  }
+  const bits = [c.connected ? T.online : T.offline];
+  if (c.plugged_in) bits.push(T.pluggedIn);
+  if (c.charging_now) bits.push(T.chargingNow);
+  $("chargerState").replaceChildren(Object.assign(document.createElement("span"), { className: "dot" + (c.connected ? " ok" : ""), textContent: bits.join(" · ") }));
+  if (c.monta_scheduling) $("fight").textContent = T.montaFights;
+  $("savedNote").hidden = false;
+  update();
+}).catch(() => update());
 setInterval(update, 10 * 60000);
 
 // The charger this browser connected on /connect, if any.
@@ -353,6 +391,7 @@ try {
   const c = JSON.parse(localStorage.getItem("lade.charger") || "null");
   if (c && c.id) {
     fetch("/api/charger/" + encodeURIComponent(c.id)).then((r) => r.json()).then((d) => {
+      if (mine) return;
       const dot = Object.assign(document.createElement("span"), { className: "dot" + (d.connected ? " ok" : ""), textContent: d.connected ? T.online + (d.plugged_in ? " · " + T.pluggedIn : "") : T.offline, title: c.name || c.id });
       $("chargerState").replaceChildren(dot);
     }).catch(() => {});
