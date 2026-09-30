@@ -6,7 +6,7 @@ export const VERSION = "0.1.0";
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "lade", title: "LadeMCP", version: VERSION },
+    { name: "lade", title: "EnergiMCP Charging", version: VERSION },
     {
       instructions: [
         "Smart charging for home EV chargers in Denmark. Chargers connect to this server over OCPP 1.6J; it plans when they charge from Energinet's day-ahead spot prices and CO2 prognosis, and sends the plan as a charging schedule.",

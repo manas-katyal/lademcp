@@ -38,7 +38,7 @@ const T = {
       ["Eller grønnest", "Træk mod grønnest, og se præcis hvad det koster ekstra og hvor meget CO₂ det sparer."],
       ["Den styrer laderen", "Den starter og stopper opladningen selv. Du kan altid trykke stop eller lade med det samme."],
     ],
-    footer: "EnergiMCP 2.0 · opladningen kører på LadeMCP, open source · priser og CO₂ fra Energinet, Energi Data Service",
+    footer: "EnergiMCP 2.0 · open source · priser og CO₂ fra Energinet, Energi Data Service",
   },
   en: {
     title: "EnergiMCP 2.0 · intelligent charging",
@@ -69,7 +69,7 @@ const T = {
       ["Or greenest", "Drag toward greenest and see exactly what it costs extra and how much CO₂ it saves."],
       ["It runs the charger", "It starts and stops charging by itself. You can always press stop, or charge right away."],
     ],
-    footer: "EnergiMCP 2.0 · charging runs on LadeMCP, open source · prices and CO₂ from Energinet, Energi Data Service",
+    footer: "EnergiMCP 2.0 · open source · prices and CO₂ from Energinet, Energi Data Service",
   },
 };
 
@@ -163,7 +163,7 @@ export function landingPage(lang: Lang): string {
     <h1>${esc(t.h1)}</h1>
     <p class="lede">${esc(t.lede)}</p>
     <div class="ctas"><a class="btn primary" href="${DEPLOY}">${esc(t.deploy)}</a><a class="btn line" href="${REPO}">${esc(t.code)}</a></div>
-    <div class="video"><video src="/lademcp.mp4" poster="/lademcp-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="${esc(t.videoLabel)}"></video></div>
+    <div class="video"><video src="/lademcp.mp4" autoplay muted loop playsinline controls preload="metadata" aria-label="${esc(t.videoLabel)}"></video></div>
   </section>
   <section class="hows">${how}</section>
   <h2 id="setup">${esc(t.run)}</h2>

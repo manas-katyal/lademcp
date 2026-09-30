@@ -23,7 +23,7 @@ const T = {
     noVolume: "Serveren har ikke noget volume, så den glemmer sin opsætning ved hver deploy. I Railway: højreklik på servicen › Attach volume, monteret på /data. Genindlæs så denne side.",
     ownerErr: { no_volume: "Tilføj først et volume på /data, se ovenfor.", short: "Adgangskoden skal have mindst 8 tegn.", wrong: "Forkert adgangskode.", throttled: "For mange forsøg. Prøv igen om et kvarter.", taken: "Serveren er lige blevet gjort til nogens. Log ind i stedet." },
     areaHead: "Hvor bor du?",
-    areaBody: "Elprisen er forskellig øst og vest for Storebælt, så LadeMCP skal vide, hvilken pris din ladestander skal planlægge efter.",
+    areaBody: "Elprisen er forskellig øst og vest for Storebælt, så EnergiMCP skal vide, hvilken pris din ladestander skal planlægge efter.",
     west: "Vest for Storebælt",
     westSub: "Jylland og Fyn · DK1",
     east: "Øst for Storebælt",
@@ -31,9 +31,9 @@ const T = {
     westShort: "Vest (DK1)",
     eastShort: "Øst (DK2)",
     doneLabel: "Færdig",
-    aiHead: "Tilføj LadeMCP til Claude",
+    aiHead: "Tilføj EnergiMCP 2.0 til Claude",
     aiBody: "Så kan du spørge Claude, hvornår bilen lader, og bede den lade grønnere eller med det samme. Det gøres ligesom med EnergiMCP.",
-    aiSteps: ["Åbn Claude, og gå til Indstillinger › Connectors.", "Vælg Tilføj brugerdefineret connector, og kald den LadeMCP.", "Indsæt adressen herunder, og gem."],
+    aiSteps: ["Åbn Claude, og gå til Indstillinger › Connectors.", "Vælg Tilføj brugerdefineret connector, og kald den EnergiMCP Opladning.", "Indsæt adressen herunder, og gem."],
     aiAddress: "Adresse",
     aiSecret: "Adressen indeholder din nøgle til serveren. Del den ikke.",
     aiCode: "Bruger du Claude Code?",
@@ -44,7 +44,7 @@ const T = {
     skip: "Spring over, jeg gør det senere",
     copy: "Kopiér",
     copied: "Kopieret",
-    doneHead: "LadeMCP er sat op",
+    doneHead: "EnergiMCP 2.0 er sat op",
     doneBody: "Ladestanderen lader i de billigste timer, og du kan spørge Claude om planen.",
     area: "Område",
     chargers: "Ladestandere",
@@ -74,7 +74,7 @@ const T = {
     noVolume: "This server has no volume, so it forgets its setup on every deploy. In Railway: right-click the service › Attach volume, mounted at /data. Then reload this page.",
     ownerErr: { no_volume: "Add a volume at /data first, see above.", short: "The password needs at least 8 characters.", wrong: "Wrong password.", throttled: "Too many tries. Try again in fifteen minutes.", taken: "Someone just made this server theirs. Log in instead." },
     areaHead: "Where do you live?",
-    areaBody: "Electricity prices differ east and west of the Great Belt, so LadeMCP needs to know which price your charger should plan on.",
+    areaBody: "Electricity prices differ east and west of the Great Belt, so EnergiMCP needs to know which price your charger should plan on.",
     west: "West of the Great Belt",
     westSub: "Jutland and Funen · DK1",
     east: "East of the Great Belt",
@@ -82,9 +82,9 @@ const T = {
     westShort: "West (DK1)",
     eastShort: "East (DK2)",
     doneLabel: "Done",
-    aiHead: "Add LadeMCP to Claude",
+    aiHead: "Add EnergiMCP 2.0 to Claude",
     aiBody: "Then you can ask Claude when the car charges, and ask it to charge greener or right away. It works just like EnergiMCP.",
-    aiSteps: ["Open Claude and go to Settings › Connectors.", "Choose Add custom connector and name it LadeMCP.", "Paste the address below and save."],
+    aiSteps: ["Open Claude and go to Settings › Connectors.", "Choose Add custom connector and name it EnergiMCP Charging.", "Paste the address below and save."],
     aiAddress: "Address",
     aiSecret: "The address contains your key to the server. Do not share it.",
     aiCode: "Using Claude Code?",
@@ -95,7 +95,7 @@ const T = {
     skip: "Skip, I will do it later",
     copy: "Copy",
     copied: "Copied",
-    doneHead: "LadeMCP is set up",
+    doneHead: "EnergiMCP 2.0 is set up",
     doneBody: "The charger charges in the cheapest hours, and you can ask Claude about the plan.",
     area: "Area",
     chargers: "Chargers",
@@ -195,7 +195,7 @@ $("owner").addEventListener("submit", async (e) => {
   $("err").textContent = T.err[d.error] || T.err.wrong;
   if (d.error === "taken") setTimeout(() => location.reload(), 1500);
 });
-</script>`, `<p>LadeMCP</p>`);
+</script>`, `<p>EnergiMCP</p>`);
 }
 
 export function areaPage(lang: Lang): string {
@@ -210,7 +210,7 @@ export function areaPage(lang: Lang): string {
     <p class="muted">${t.areaBody}</p>
     <ul class="rows">${pick("DK1", t.west, t.westSub)}${pick("DK2", t.east, t.eastSub)}</ul>
   </div>
-${SCRIPT(t)}`, `<p>LadeMCP</p>`);
+${SCRIPT(t)}`, `<p>EnergiMCP</p>`);
 }
 
 export function assistantPage(lang: Lang, opts: { claudeUrl: string; seen: boolean }): string {
@@ -242,7 +242,7 @@ if (${!opts.seen}) {
     } catch {}
   }, 3000);
 }
-</script>`, `<p>LadeMCP</p>`);
+</script>`, `<p>EnergiMCP</p>`);
 }
 
 export function donePage(
@@ -271,5 +271,5 @@ export function donePage(
     <a class="btn full" href="/">${t.seePlan}</a>
     <a class="link" href="/connect">${t.another}</a>
   </div>
-${SCRIPT(t)}`, `<p>LadeMCP</p>`);
+${SCRIPT(t)}`, `<p>EnergiMCP</p>`);
 }

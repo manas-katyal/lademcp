@@ -140,7 +140,7 @@ export function registerTools(server: McpServer): void {
         const m = montaStatus(s.id);
         return {
           id: s.id,
-          ...(isMonta(s.id) ? { via: "monta", plugged_in: m?.pluggedIn ?? false, charging_now: m?.charging ?? false, ...(m?.lastAction ? { last_action: m.lastAction } : {}), ...(m?.montaScheduling ? { problem: "Monta's own smart charging keeps scheduling charges. Ask the owner to turn it off in the Monta app so LadeMCP can decide." } : {}), ...(m?.error ? { error: m.error } : {}) } : {}),
+          ...(isMonta(s.id) ? { via: "monta", plugged_in: m?.pluggedIn ?? false, charging_now: m?.charging ?? false, ...(m?.lastAction ? { last_action: m.lastAction } : {}), ...(m?.montaScheduling ? { problem: "Monta's own smart charging keeps scheduling charges. Ask the owner to turn it off in the Monta app so EnergiMCP can decide." } : {}), ...(m?.error ? { error: m.error } : {}) } : {}),
           ...(s.label ? { label: s.label } : {}),
           online: isMonta(s.id) ? !m?.error : isConnected(s.id),
           ...(st.vendor ? { vendor: st.vendor, model: st.model } : {}),
@@ -212,7 +212,7 @@ export function registerTools(server: McpServer): void {
       if (isMonta(charger_id)) {
         replanMonta();
         await montaCheck();
-        return json({ saved: s, note: "A new plan is made from these settings; LadeMCP starts and stops the charge through Monta." });
+        return json({ saved: s, note: "A new plan is made from these settings; EnergiMCP starts and stops the charge through Monta." });
       }
       if (!s.smart || !isConnected(charger_id)) return json({ saved: s });
       const p = await makePlan(s);
@@ -236,7 +236,7 @@ export function registerTools(server: McpServer): void {
         resumeMonta();
         replanMonta();
         await montaCheck();
-        return json({ smart_charging: true, plan: planView(await makePlan(s), s), note: "LadeMCP starts and stops the charge through Monta in the planned quarter-hours, checking once a minute." });
+        return json({ smart_charging: true, plan: planView(await makePlan(s), s), note: "EnergiMCP starts and stops the charge through Monta in the planned quarter-hours, checking once a minute." });
       }
       const p = await makePlan(s);
       const status = await applyPlan(charger_id, p);

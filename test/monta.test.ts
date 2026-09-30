@@ -49,7 +49,7 @@ test("Monta keys find the charge point and count as the charger step", async () 
   const ok = await post("/setup/monta", { clientId: " id-1 ", clientSecret: "secret-1" });
   assert.deepEqual(await ok.json(), { chargePoints: [{ id: 42, name: "Carport", state: "available", cablePluggedIn: true }] });
   const page = await (await fetch(`http://localhost:${port}/setup`, { headers: { cookie }, redirect: "manual" })).text();
-  assert.match(page, /Tilføj LadeMCP til Claude/);
+  assert.match(page, /Tilføj EnergiMCP 2.0 til Claude/);
   assert.ok(!page.includes("secret-1"));
 });
 

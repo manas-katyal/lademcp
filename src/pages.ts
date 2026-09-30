@@ -49,7 +49,7 @@ const T = {
     co2_partial: "CO2-prognosen for i morgen kommer omkring kl. 15. Indtil da tæller de timer som gennemsnit.",
     tariffYes: "Spotpris plus nettarif. Elafgift, Energinets tariffer og moms kommer oveni.",
     tariffNo: "Kun spotpris. Nettarif, elafgift og moms kommer oveni, så regningen er højere.",
-    footer: "LadeMCP · priser og CO2 fra Energinet, Energi Data Service",
+    footer: "EnergiMCP · priser og CO2 fra Energinet, Energi Data Service",
     charger: "Ladestander",
     connect: "Tilslut",
     online: "Forbundet",
@@ -57,7 +57,7 @@ const T = {
     pluggedIn: "bil sat i",
     chargingNow: "lader nu",
     at: "Kl.",
-    montaFights: "Monta planlægger selv opladningen. Slå smart opladning fra i Monta-appen, så LadeMCP kan bestemme, hvornår bilen lader.",
+    montaFights: "Monta planlægger selv opladningen. Slå smart opladning fra i Monta-appen, så EnergiMCP kan bestemme, hvornår bilen lader.",
     savedToCharger: "Gemmes på din ladestander.",
     stopNow: "Stop opladningen",
     chargeNow: "Lad nu",
@@ -98,7 +98,7 @@ const T = {
     co2_partial: "Tomorrow's CO2 forecast arrives around 15:00. Until then those hours count as average.",
     tariffYes: "Spot price plus grid tariff. Electricity tax, Energinet tariffs and VAT come on top.",
     tariffNo: "Spot price only. Grid tariff, electricity tax and VAT come on top, so the bill is higher.",
-    footer: "LadeMCP · prices and CO2 from Energinet, Energi Data Service",
+    footer: "EnergiMCP · prices and CO2 from Energinet, Energi Data Service",
     charger: "Charger",
     connect: "Connect",
     online: "Connected",
@@ -106,7 +106,7 @@ const T = {
     pluggedIn: "car plugged in",
     chargingNow: "charging now",
     at: "At",
-    montaFights: "Monta is scheduling the charging itself. Turn off smart charging in the Monta app so LadeMCP can decide when the car charges.",
+    montaFights: "Monta is scheduling the charging itself. Turn off smart charging in the Monta app so EnergiMCP can decide when the car charges.",
     savedToCharger: "Saved to your charger.",
     stopNow: "Stop charging",
     chargeNow: "Charge now",
@@ -137,7 +137,7 @@ export function shell(lang: Lang, title: string, back: string, body: string, foo
     .map((l) => `<a href="/lang/${l}?back=${encodeURIComponent(back)}" hreflang="${l}" lang="${l}"${lang === l ? ' class="on" aria-current="true"' : ""}>${l === "da" ? "DK" : "EN"}</a>`)
     .join("");
   return `<!doctype html><html lang="${lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><title>${esc(title)} · LadeMCP</title><link rel="icon" href="/icon.svg?v=1" type="image/svg+xml">
+<meta name="color-scheme" content="light dark"><title>${esc(title)} · EnergiMCP 2.0</title><link rel="icon" href="/energimcp-icon.svg" type="image/svg+xml">
 <style>
   :root{--bg:#faf9f7;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--faint:#8e8e93;--line:#e8e8ea;--ok:#0f7b4f;--err:#c1352a;
     --ease:cubic-bezier(0.22,1,0.36,1);--digit-dur:500ms;--digit-distance:8px;--digit-stagger:70ms;--digit-blur:2px;--digit-ease:cubic-bezier(0.34,1.45,0.64,1)}
@@ -201,7 +201,7 @@ export function shell(lang: Lang, title: string, back: string, body: string, foo
   .dot.ok::before{background:var(--ok)}
 </style>
 <body><div class="wrap">
-  <div class="top"><a class="brand" href="/" style="text-decoration:none"><img class="mark" src="/icon.svg?v=1" alt=""><span>LadeMCP</span></a><nav class="langs" aria-label="${t.langLabel}">${toggle}</nav></div>
+  <div class="top"><a class="brand" href="/" style="text-decoration:none"><img class="mark" src="/energimcp-icon.svg" alt=""><span>EnergiMCP 2.0</span></a><nav class="langs" aria-label="${t.langLabel}">${toggle}</nav></div>
 ${body}
   <footer>${footer}</footer>
 </div>

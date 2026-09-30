@@ -81,7 +81,7 @@ test("a charger with the generated password moves setup on to Claude", async () 
   await new Promise((resolve, reject) => ws.once("open", resolve).once("error", reject));
   ws.close();
   const page = await (await get("/setup")).text();
-  assert.match(page, /Tilføj LadeMCP til Claude/);
+  assert.match(page, /Tilføj EnergiMCP 2.0 til Claude/);
   assert.ok(page.includes(`https://lade.example.dk/mcp/${setup.mcpToken()}`));
 });
 
@@ -115,7 +115,7 @@ test("finishing opens the front page, and /setup then shows what was set up", as
   assert.equal((await post("/setup/finish", {})).status, 200);
   assert.equal((await get("/")).status, 200);
   const page = await (await get("/setup")).text();
-  assert.match(page, /LadeMCP er sat op/);
+  assert.match(page, /EnergiMCP 2.0 er sat op/);
   assert.ok(page.includes("SETUP-1") && page.includes("EVB-1"));
 });
 
@@ -146,7 +146,7 @@ test("a browser that claimed the server before passwords is asked to choose one"
   const set = await fetch(url("/setup/password"), { method: "POST", headers: { cookie: legacy, "content-type": "application/json" }, body: JSON.stringify({ password: "ny-hemmelig-kode" }) });
   assert.equal(set.status, 200);
   const fresh = set.headers.get("set-cookie")!.split(";")[0];
-  assert.match(await (await fetch(url("/setup"), { headers: { cookie: fresh } })).text(), /LadeMCP er sat op/);
+  assert.match(await (await fetch(url("/setup"), { headers: { cookie: fresh } })).text(), /EnergiMCP 2.0 er sat op/);
 });
 
 test("on Railway without a volume, nobody can claim the server", async () => {
